@@ -6,8 +6,6 @@ import { PinataSDK } from 'pinata-web3';
 const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT!.replace(/^['"]|['"]$/g, '');
 const PINATA_GW = process.env.NEXT_PUBLIC_PINATA_GW!.replace(/^['"]|['"]$/g, '')
 
-console.log("PINATA_JWT",PINATA_JWT)
-console.log("PINATA_GW",PINATA_GW)
 
 // 初始化 Pinata 客户端（全局只实例化一次）
 const pinata = new PinataSDK({
