@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       child_process: false, // 禁用 child_process 模块
+      'pino-pretty': false,
     };
     return config;
   },

@@ -15,7 +15,7 @@ const VideoPage = () => {
   const [tipAmount, setTipAmount] = useState<string>('0.01'); // 默认打赏金额为 0.01 ETH
   const { data: hash, sendTransaction, error, isPending: isTransactionPending } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
-  const { isConnected, address } = useAccount(); // 检查钱包连接状态
+  const { isConnected } = useAccount(); // 检查钱包连接状态
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
