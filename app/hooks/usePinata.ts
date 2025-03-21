@@ -156,9 +156,7 @@ export const usePinata = (limit: number = 8) => {
       }
 
       const data = await response.json()
-      // 修正日志输出，显示正确的数据路径
       console.log('V3 API返回数据结构:', data)
-
       // 检查并获取正确路径的文件数组
       if (data.data && data.data.files && Array.isArray(data.data.files)) {
         // console.log('找到视频元数据文件:', data.data.files.length)
@@ -500,7 +498,7 @@ export const usePinata = (limit: number = 8) => {
     return () => {
       setError(null)
     }
-  }, [getLatestCIDs, loading, isServer])
+  }, [getLatestCIDs, isServer]) // 移除 loading 依赖，避免循环调用
 
   return {
     videos, // 包含完整元数据的视频列表

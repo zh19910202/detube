@@ -64,9 +64,7 @@ const VideoPage = () => {
 
       try {
         // 从 IPFS 获取元数据 JSON
-        const response = await fetch(
-          `https://cyan-fast-mastodon-963.mypinata.cloud/ipfs/${videoId}`
-        )
+        const response = await fetch(`${getPinataGateway()}/ipfs/${videoId}`)
 
         if (!response.ok) {
           throw new Error(`Failed to fetch metadata: ${response.statusText}`)
@@ -193,6 +191,13 @@ const VideoPage = () => {
     }
   }, [isConnected, tipError, transactionStatus])
 
+  // 使用相同的格式处理环境变量
+  const getPinataGateway = () => {
+    return process.env.NEXT_PUBLIC_PINATA_GW
+      ? process.env.NEXT_PUBLIC_PINATA_GW.replace(/^['"]|['"]$/g, '')
+      : 'https://cyan-fast-mastodon-963.mypinata.cloud'
+  }
+
   if (isMetadataLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -217,8 +222,10 @@ const VideoPage = () => {
     )
   }
 
-  const videoUrl = `https://cyan-fast-mastodon-963.mypinata.cloud/ipfs/${videoMetadata.videoCid}`
-  const coverImageUrl = `https://cyan-fast-mastodon-963.mypinata.cloud/ipfs/${videoMetadata.coverImageCid}`
+  const videoUrl = `${getPinataGateway()}/ipfs/${videoMetadata.videoCid}`
+  const coverImageUrl = `${getPinataGateway()}/ipfs/${
+    videoMetadata.coverImageCid
+  }`
 
   return (
     <div className="min-h-screen bg-gray-100">

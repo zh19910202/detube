@@ -10,7 +10,12 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { config } from './lib/wagmi'
 
 const queryClient = new QueryClient()
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['Helvetica', 'Arial', 'sans-serif'],
+  preload: true,
+})
 
 export default function RootLayout({
   children,
@@ -58,7 +63,19 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+      <head>
+        <style>
+          {`
+            /* 备用字体样式，防止字体加载问题 */
+            .font-fallback {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            }
+          `}
+        </style>
+      </head>
+      <body
+        className={`${inter.className} font-fallback`}
+        suppressHydrationWarning>
         <WagmiProvider config={config}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider>

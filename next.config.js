@@ -44,6 +44,13 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // 添加实验性配置
+  experimental: {
+    // 确保使用webpack而不是turbopack
+    turbo: false,
+  },
+  // 配置字体加载
+  optimizeFonts: false,
 }
 
 module.exports = nextConfig 
