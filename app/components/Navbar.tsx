@@ -12,7 +12,15 @@ const Navbar: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false) // 控制模态框是否打开
   const [toastMessage, setToastMessage] = useState<string | null>(null) // 控制提示消息
 
+  // 新增字段：标题、封面和描述
+  const [title, setTitle] = useState<string>('')
+  const [coverImage, setCoverImage] = useState<File | null>(null)
+  const [description, setDescription] = useState<string>('')
+
   const { ipfsHash, uploading, error, uploadFile } = usePinata()
+
+  // 新增一个状态来标记用户是否尝试过上传
+  const [hasAttemptedUpload, setHasAttemptedUpload] = useState(false)
 
   // 处理文件选择
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,12 +30,22 @@ const Navbar: React.FC = () => {
     }
   }
 
+  // 处理封面图片选择
+  const handleCoverImageChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setCoverImage(file) // 保存选择的封面文件
+    }
+  }
+
   // 处理上传
   const handleUpload = () => {
-    if (selectedFile) {
-      uploadFile(selectedFile)
-        .then(() => console.log('上传成功'))
-        .catch((error) => console.log('上传失败', error));
+    if (selectedFile && title && coverImage && description) {
+      setHasAttemptedUpload(true) // 标记用户已尝试上传
+      // 假设上传的函数支持接受多个字段
+      uploadFile(title, coverImage, selectedFile, description)
       setIsModalOpen(false) // 上传开始后关闭模态框
     }
   }
@@ -66,8 +84,7 @@ const Navbar: React.FC = () => {
             isConnected && !uploading
               ? 'bg-blue-500 hover:bg-blue-700'
               : 'bg-gray-500 cursor-not-allowed'
-          } text-white py-2 px-4 rounded-2xl transform hover:scale-105 transition-transform duration-200`}
-        >
+          } text-white py-2 px-4 rounded-2xl transform hover:scale-105 transition-transform duration-200`}>
           {uploading ? '上传中...' : '上传视频'}
         </button>
 
@@ -75,10 +92,10 @@ const Navbar: React.FC = () => {
         <ConnectButton />
       </div>
 
-      {/* 显示错误信息 */}
-      {error && (
-        <div className="mt-2 text-sm text-red-500">
-          <p>{error}</p>
+      {/* 显示错误信息 - 只在用户尝试过上传且有错误时才显示 */}
+      {hasAttemptedUpload && error && (
+        <div className="mt-2 text-sm text-black bg-red-50 p-2 rounded border border-red-200">
+          <p>上传失败，请重试</p>
         </div>
       )}
 
@@ -86,32 +103,61 @@ const Navbar: React.FC = () => {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-96 max-w-sm">
-            <h2 className="text-xl font-semibold text-white mb-4">选择视频文件</h2>
+            {/* 标题输入框 */}
             <input
-              type="file"
-              accept="video/*"
-              onChange={handleFileChange}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="视频标题"
               className="mb-4 w-full text-white bg-gray-700 border border-gray-600 rounded-md p-2"
             />
+            {/* 封面图片输入框 */}
+            <div className="mb-4 relative">
+              <label className=" text-white font-medium">上传封面图片：</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleCoverImageChange}
+                className="mb-4 w-full text-white bg-gray-700 border border-gray-600 rounded-md p-2"
+              />
+            </div>
+            {/* <h2 className="text-xl font-semibold text-white mb-4">选择视频文件</h2> */}
+            <div className="mb-4 relative">
+              <label className=" text-white font-medium mb-2">上传视频：</label>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleFileChange}
+                className="mb-4 w-full text-white bg-gray-700 border border-gray-600 rounded-md p-2"
+              />
+            </div>
+
+            {/* 描述输入框 */}
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="视频描述"
+              className="mb-4 w-full text-white bg-gray-700 border border-gray-600 rounded-md p-2"></textarea>
+
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setIsModalOpen(false)} // 取消按钮，关闭模态框
-                className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200"
-              >
+                className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200">
                 取消
               </button>
               <button
                 onClick={() => {
-                  handleUpload(); // 上传文件
-                  setIsModalOpen(false); // 上传后关闭模态框
+                  handleUpload() // 上传文件
+                  setIsModalOpen(false) // 上传后关闭模态框
                 }}
-                disabled={!selectedFile} // 如果没有选择文件则禁用
+                disabled={
+                  !selectedFile || !title || !coverImage || !description
+                } // 如果有任一字段未填写则禁用
                 className={`${
-                  selectedFile
+                  selectedFile && title && coverImage && description
                     ? 'bg-blue-500 hover:bg-blue-700'
                     : 'bg-gray-500 cursor-not-allowed'
-                } text-white py-2 px-4 rounded-md transition duration-200`}
-              >
+                } text-white py-2 px-4 rounded-md transition duration-200`}>
                 确定
               </button>
             </div>

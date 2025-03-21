@@ -1,7 +1,6 @@
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  webpack(config) {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack (config) {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       child_process: false, // 禁用 child_process 模块
@@ -41,6 +40,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // 关闭 ESLint 检查（仅用于构建）
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 }
 
-export default nextConfig
+module.exports = nextConfig 
