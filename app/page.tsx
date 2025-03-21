@@ -2,10 +2,34 @@
 
 import VideoCard from './components/VideoCard'
 import { usePinata } from './hooks/usePinata'
+import { useEffect } from 'react'
 
 const HomePage = () => {
   // 使用自定义 Hook 获取视频元数据列表
-  const { videos, loading } = usePinata(10) // 增加检索数量
+  const { videos, loading, getLatestCIDs } = usePinata(10) // 增加检索数量
+
+  // 每次组件挂载时刷新视频列表
+  useEffect(() => {
+    // 立即获取一次
+    getLatestCIDs()
+
+    // 监听视频上传完成事件
+    const handleVideoUploadComplete = () => {
+      console.log('收到视频上传完成事件，刷新视频列表')
+      getLatestCIDs()
+    }
+
+    // 添加事件监听器
+    window.addEventListener('video-upload-complete', handleVideoUploadComplete)
+
+    // 清理函数
+    return () => {
+      window.removeEventListener(
+        'video-upload-complete',
+        handleVideoUploadComplete
+      )
+    }
+  }, [getLatestCIDs])
 
   if (loading) {
     return (

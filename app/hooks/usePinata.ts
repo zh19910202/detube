@@ -1,12 +1,12 @@
 'use client'
 // hooks/usePinata.ts
 import { useState, useEffect, useCallback } from 'react'
-import { PinataSDK } from 'pinata-web3'
+import { PinataSDK } from 'pinata'
 
 // 检查是否是服务器端环境
 const isServer = typeof window === 'undefined'
 
-// 移除不必要的console.log，以避免服务器/客户端输出不一致
+// 配置 Pinata
 const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT
   ? process.env.NEXT_PUBLIC_PINATA_JWT.replace(/^['"]|['"]$/g, '')
   : ''
@@ -14,37 +14,34 @@ const PINATA_GW = process.env.NEXT_PUBLIC_PINATA_GW
   ? process.env.NEXT_PUBLIC_PINATA_GW.replace(/^['"]|['"]$/g, '')
   : ''
 
-// 初始化 Pinata 客户端（使用useEffect确保只在客户端执行）
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let pinata: any = null
+// 初始化 Pinata 客户端
+let pinata: PinataSDK | null = null
 
-// 元数据JSON文件的组ID - 用于区分元数据和其他文件
+// 元数据JSON文件的组ID
 const METADATA_GROUP_ID = '8d445587-d12f-4803-ad8d-6099e8369a44'
-
-// 手动测试 CID 列表，用于在 Pinata 不可用时提供测试数据
-const TEST_CIDS = [
-  'QmZ9zQJuTWNgn6W7Q1tU4KLV8JA9LvdYj1JKsHgSjVrTxi', // 示例CID
-]
 
 // 定义视频元数据类型
 export interface VideoMetadata {
-  cid: string // 元数据JSON文件的CID
+  cid: string
   title: string
   description: string
   coverImageCid: string
   videoCid: string
   timestamp: string
+  author?: string
 }
 
-// 用于API返回的文件类型
+// 用于 SDK 返回的文件类型
 interface PinataFileItem {
   cid: string
   created_at: string
   id?: string
   name?: string
-  // 添加可能存在的时间字段
   added?: string
 }
+
+// 定义上传阶段类型
+export type UploadStage = 'idle' | 'cover' | 'video' | 'metadata' | 'complete'
 
 export const usePinata = (limit: number = 8) => {
   const [videos, setVideos] = useState<VideoMetadata[]>([])
@@ -52,18 +49,21 @@ export const usePinata = (limit: number = 8) => {
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [ipfsHash, setIpfsHash] = useState<string | null>(null)
-  const [apiMode, setApiMode] = useState<'direct' | 'test'>('direct')
 
-  // 在客户端初始化Pinata SDK
+  // 添加上传进度相关状态
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadStage, setUploadStage] = useState<UploadStage>('idle')
+
+  // 在客户端初始化 Pinata SDK
   useEffect(() => {
-    if (!isServer) {
-      // 确保只在客户端执行
+    if (!isServer && !pinata) {
       try {
         pinata = new PinataSDK({
           pinataJwt: PINATA_JWT,
           pinataGateway: PINATA_GW,
         })
-        // console.log('Pinata SDK 初始化成功')
+        console.log('Pinata SDK 初始化成功')
+        console.log('Pinata 对象:', pinata)
       } catch (err) {
         console.error('Pinata SDK 初始化失败:', err)
       }
@@ -72,55 +72,39 @@ export const usePinata = (limit: number = 8) => {
 
   // 从 IPFS 获取元数据 JSON 文件内容
   const fetchMetadata = async (cid: string): Promise<VideoMetadata | null> => {
+    if (!pinata) {
+      console.error('Pinata SDK 未初始化')
+      return null
+    }
     try {
-      // console.log(`开始获取CID ${cid}的元数据`)
-      // 使用Pinata SDK获取数据 (如果可用)
-      if (pinata) {
-        try {
-          // console.log(`尝试使用Pinata SDK获取 ${cid}`)
-          const response = await pinata.gateways.get(cid)
-          const jsonContent =
-            typeof response.data === 'string'
-              ? JSON.parse(response.data)
-              : response.data
+      const response = await pinata.gateways.public.get(cid)
+      const jsonContent =
+        typeof response.data === 'string'
+          ? JSON.parse(response.data)
+          : response.data
 
-          // console.log(`成功通过SDK获取CID ${cid}的元数据:`, jsonContent)
+      const isValidMetadata =
+        jsonContent &&
+        typeof jsonContent === 'object' &&
+        (jsonContent.title !== undefined ||
+          jsonContent.description !== undefined) &&
+        jsonContent.coverImageCid !== undefined &&
+        jsonContent.videoCid !== undefined
 
-          // 验证元数据格式
-          const isValidMetadata =
-            jsonContent &&
-            typeof jsonContent === 'object' &&
-            (jsonContent.title !== undefined ||
-              jsonContent.description !== undefined) &&
-            jsonContent.coverImageCid !== undefined &&
-            jsonContent.videoCid !== undefined
-
-          if (!isValidMetadata) {
-            console.error(
-              `CID ${cid} 元数据格式无效，缺少必要字段:`,
-              jsonContent
-            )
-            return null
-          }
-
-          // 使用提供的timestamp或者固定值，避免使用当前时间戳
-          const timestamp = jsonContent.timestamp || '2023-01-01T00:00:00.000Z'
-
-          return {
-            cid,
-            title: jsonContent.title || '未命名视频',
-            description: jsonContent.description || '无描述',
-            coverImageCid: jsonContent.coverImageCid,
-            videoCid: jsonContent.videoCid,
-            timestamp,
-          }
-        } catch (sdkError) {
-          console.error(`SDK获取失败: ${sdkError}`)
-          return null
-        }
-      } else {
-        console.error('Pinata SDK 不可用')
+      if (!isValidMetadata) {
+        console.error(`CID ${cid} 元数据格式无效:`, jsonContent)
         return null
+      }
+
+      const timestamp = jsonContent.timestamp || '2023-01-01T00:00:00.000Z'
+      return {
+        cid,
+        title: jsonContent.title || '未命名视频',
+        description: jsonContent.description || '无描述',
+        coverImageCid: jsonContent.coverImageCid,
+        videoCid: jsonContent.videoCid,
+        timestamp,
+        author: jsonContent.author || '',
       }
     } catch (err) {
       console.error(`解析元数据出错 CID ${cid}:`, err)
@@ -128,164 +112,123 @@ export const usePinata = (limit: number = 8) => {
     }
   }
 
-  // 使用V3 API获取元数据组文件列表
+  // 使用 SDK 获取元数据组文件列表
   const getFiles = async (pageLimit: number) => {
-    // 确保只在客户端执行
-    if (isServer) {
+    if (isServer || !pinata) {
+      console.error('Pinata SDK 未初始化或在服务器端运行')
       return []
     }
-
     try {
-      // console.log('使用V3 API获取元数据文件列表...')
-      // 根据正确的API端点更新URL
-      const apiUrl = `https://api.pinata.cloud/v3/files/public?group=${METADATA_GROUP_ID}&limit=${pageLimit}`
-      // console.log('API请求URL:', apiUrl)
+      console.log(
+        `尝试获取组 ${METADATA_GROUP_ID} 的文件，限制 ${pageLimit} 条`
+      )
+      const groupResponse = await pinata.files.public
+        .list()
+        .group(METADATA_GROUP_ID)
+      console.log('groupResponse', groupResponse)
+      console.log('组响应:', JSON.stringify(groupResponse, null, 2))
 
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${PINATA_JWT}`,
-        },
-      })
-
-      if (!response.ok) {
-        console.error(
-          `V3 API请求失败: ${response.status} ${response.statusText}`
-        )
+      const files = groupResponse.files || []
+      if (!files || !Array.isArray(files)) {
+        console.error('获取组文件失败：无效的 files 字段')
         return []
       }
 
-      const data = await response.json()
-      console.log('V3 API返回数据结构:', data)
-      // 检查并获取正确路径的文件数组
-      if (data.data && data.data.files && Array.isArray(data.data.files)) {
-        // console.log('找到视频元数据文件:', data.data.files.length)
-        return (
-          data.data.files
-            .slice(0, pageLimit)
-            // 使用接口类型而不是any
-            .map(
-              (item: {
-                cid?: string
-                created_at?: string
-                added?: string
-              }) => ({
-                cid: item.cid || '',
-                created_at:
-                  item.created_at || item.added || '2023-01-01T00:00:00.000Z',
-              })
-            )
-        )
-      } else {
-        // console.log(
-        //  'V3 API返回格式不符合预期，无法找到 data.data.files 数组',
-        //  data
-        // )
+      if (files.length === 0) {
+        console.log(`组 ${METADATA_GROUP_ID} 中没有文件`)
         return []
       }
+
+      const mappedFiles = files
+        .slice(0, pageLimit)
+        .map(
+          (file: {
+            cid?: string
+            ipfs_pin_hash?: string
+            created_at?: string
+            date_created?: string
+          }) => ({
+            cid: file.cid || file.ipfs_pin_hash || '',
+            created_at:
+              file.created_at ||
+              file.date_created ||
+              '2023-01-01T00:00:00.000Z',
+          })
+        )
+
+      console.log(`获取到 ${mappedFiles.length} 个文件`)
+      return mappedFiles
     } catch (err) {
-      console.error('V3 API调用出错:', err)
+      console.error('SDK 获取组文件出错:', err)
       return []
     }
   }
 
-  // 直接使用API上传文件到Pinata
+  // 使用 SDK 上传文件到 Pinata（不加入组）
   const uploadFileToPinata = async (
     file: File,
-    metadata?: { name?: string; keyvalues?: Record<string, string> }
+    onProgress?: (progress: number) => void
   ): Promise<{ cid: string; id: string }> => {
-    const formData = new FormData()
-    formData.append('file', file)
-
-    if (metadata) {
-      formData.append(
-        'pinataMetadata',
-        JSON.stringify({
-          name: metadata.name || file.name,
-          keyvalues: metadata.keyvalues || {},
-        })
-      )
+    if (!pinata) {
+      throw new Error('Pinata SDK 未初始化')
     }
 
-    const url = 'https://api.pinata.cloud/pinning/pinFileToIPFS'
-    // console.log(`上传文件到 ${url}`)
+    // 直接使用SDK方法，不再使用自定义XHR实现
+    // SDK内部已实现上传功能，我们只需在上传前和上传后更新进度
+    try {
+      // 如果需要进度更新，先显示初始进度0%
+      if (onProgress) {
+        onProgress(0)
+      }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${PINATA_JWT}`,
-      },
-      body: formData,
-    })
+      // 使用SDK上传文件
+      const result = await pinata.upload.public.file(file)
+      console.log('文件上传结果:', result)
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(
-        `上传文件失败: ${response.status} ${response.statusText} - ${errorText}`
-      )
-    }
+      if (!result || !result.cid) {
+        throw new Error('上传结果中没有找到有效的 CID')
+      }
 
-    const data = await response.json()
-    // console.log('上传结果:', data)
+      // 上传完成后，如果有进度回调则显示100%
+      if (onProgress) {
+        onProgress(100)
+      }
 
-    return {
-      cid: data.IpfsHash,
-      id: data.IpfsHash, // 在v2 API中使用IpfsHash作为ID
+      return {
+        cid: result.cid,
+        id: result.id || result.cid,
+      }
+    } catch (error) {
+      console.error('SDK 上传文件失败:', error)
+      throw error
     }
   }
 
-  // 将文件添加到组
-  const addFileToGroup = async (
-    fileId: string,
-    groupId: string
-  ): Promise<void> => {
+  // 使用 SDK 上传 JSON 数据并加入组
+  const uploadJsonToPinata = async (
+    jsonData: object,
+    fileName: string,
+    groupId?: string
+  ): Promise<{ cid: string; id: string }> => {
+    if (!pinata) {
+      throw new Error('Pinata SDK 未初始化')
+    }
     try {
-      // 尝试使用V3 API
-      const v3Url = `https://api.pinata.cloud/v3/groups/public/${groupId}/files`
-      // console.log(`尝试使用V3 API添加文件到组: ${v3Url}`)
+      // 修复类型问题，将options作为可选参数传递
+      const upload = pinata.upload.public.json(jsonData)
+      const result = groupId ? await upload.group(groupId) : await upload
+      console.log('JSON 上传结果:', result)
 
-      const v3Response = await fetch(v3Url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${PINATA_JWT}`,
-        },
-        body: JSON.stringify({
-          files: [fileId],
-        }),
-      })
-
-      if (v3Response.ok) {
-        // console.log('V3 API成功添加文件到组')
-        return
+      if (!result || !result.cid) {
+        throw new Error('上传结果中没有找到有效的 CID')
       }
 
-      // 如果V3失败，尝试使用V2 API方式（修改元数据）
-      // console.log('V3 API添加文件到组失败，尝试V2 API方式')
-      const v2Url = `https://api.pinata.cloud/pinning/hashMetadata`
-
-      const v2Response = await fetch(v2Url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${PINATA_JWT}`,
-        },
-        body: JSON.stringify({
-          ipfsPinHash: fileId,
-          name: `Group ${groupId} file`,
-          keyvalues: {
-            groupId: groupId,
-          },
-        }),
-      })
-
-      if (!v2Response.ok) {
-        throw new Error(`V2 API添加文件到组失败: ${v2Response.status}`)
+      return {
+        cid: result.cid,
+        id: result.id || result.cid,
       }
-
-      // console.log('V2 API成功添加文件到组')
     } catch (error) {
-      console.error('添加文件到组失败:', error)
+      console.error('SDK 上传 JSON 失败:', error)
       throw error
     }
   }
@@ -293,55 +236,17 @@ export const usePinata = (limit: number = 8) => {
   // 查询最新元数据文件 CID 列表并获取元数据
   const getLatestCIDs = useCallback(
     async (pageLimit: number = limit) => {
-      // 确保只在客户端执行
-      if (isServer) {
-        return
-      }
+      if (isServer) return
 
-      // console.log('开始获取最新元数据文件列表...')
       setLoading(true)
       setError(null)
 
       try {
-        // 尝试获取文件列表
-        const files = (await getFiles(10)) || []
-
-        // 如果API获取失败，使用测试数据
+        const files = await getFiles(10)
         if (files.length === 0) {
-          // console.log('API获取文件列表失败，使用测试数据')
-          setApiMode('test')
-
-          if (TEST_CIDS.length === 0) {
-            throw new Error('无法获取元数据文件列表，且没有测试数据可用')
-          }
-
-          // 使用测试数据
-          const testFiles = TEST_CIDS.map((cid: string) => ({
-            cid: cid,
-            created_at: '2023-01-01T00:00:00.000Z', // 使用固定时间戳
-          }))
-
-          // 获取测试数据元数据
-          const metadataPromises = testFiles.map((file: PinataFileItem) =>
-            fetchMetadata(file.cid)
-          )
-          const metadataResults = await Promise.all(metadataPromises)
-          const validMetadata = metadataResults.filter(
-            (item) => item !== null
-          ) as VideoMetadata[]
-
-          if (validMetadata.length === 0) {
-            throw new Error('所有测试数据获取失败')
-          }
-
-          setVideos(validMetadata)
-          setLoading(false)
-          return
+          throw new Error('无法获取元数据文件列表')
         }
 
-        // console.log(`成功获取 ${files.length} 个元数据文件`)
-
-        // 按时间倒序排序
         const sortedFiles = files.sort(
           (a: PinataFileItem, b: PinataFileItem) => {
             const dateA = new Date(a.created_at).getTime()
@@ -350,164 +255,163 @@ export const usePinata = (limit: number = 8) => {
           }
         )
 
-        // 取最新的文件并获取它们的元数据
         const latestCIDs = sortedFiles
           .slice(0, pageLimit)
-          .map((file: PinataFileItem) => file.cid)
+          .map((file) => file.cid)
 
         if (latestCIDs.length === 0) {
           throw new Error('没有找到有效的元数据文件')
         }
 
-        // console.log(
-        //  `准备获取 ${latestCIDs.length} 个元数据文件内容:`,
-        //  latestCIDs
-        // )
-
-        // 对每个CID获取元数据
-        const metadataPromises = latestCIDs.map((cid: string) =>
-          fetchMetadata(cid)
-        )
+        const metadataPromises = latestCIDs.map((cid) => fetchMetadata(cid))
         const metadataResults = await Promise.all(metadataPromises)
-
-        // 过滤掉获取失败的元数据
         const validMetadata = metadataResults.filter(
           (item) => item !== null
         ) as VideoMetadata[]
 
-        // console.log('获取到有效元数据:', validMetadata.length)
-
         if (validMetadata.length === 0) {
-          throw new Error('所有元数据获取失败，请检查IPFS网关或CID有效性')
+          throw new Error('所有元数据获取失败，请检查 IPFS 网关或 CID 有效性')
         }
 
         setVideos(validMetadata)
       } catch (err) {
         console.error('获取文件列表失败:', err)
-        setError(
-          // 不暴露具体错误信息给用户
-          `视频加载失败，请刷新页面重试`
-        )
+        setError('视频加载失败，请刷新页面重试')
       } finally {
-        // 确保无论如何都设置loading为false
         setLoading(false)
       }
     },
     [limit]
   )
 
-  // 使用直接API上传文件到Pinata
+  // 上传文件到 Pinata
   const uploadFile = async (
     title: string,
     image: File,
     video: File,
-    desc: string
+    desc: string,
+    walletAddress: string
   ) => {
-    // 确保只在客户端执行
-    if (isServer) {
+    if (isServer || !pinata) {
+      setError('Pinata SDK 未初始化')
+      return
+    }
+
+    if (!walletAddress) {
+      setError('缺少作者钱包地址')
       return
     }
 
     setUploading(true)
     setError(null)
+    setUploadProgress(0)
+    setUploadStage('cover')
 
     try {
-      // console.log('开始上传文件到Pinata...')
-
-      // 上传封面图片
-      // console.log('上传封面图片...')
-      const imageResult = await uploadFileToPinata(image, {
-        name: `${title}-cover`,
+      // 模拟上传封面图片的进度 - 占总进度的20%
+      setUploadProgress(0)
+      console.log('开始上传封面图片...')
+      const imageResult = await uploadFileToPinata(image, (progress) => {
+        // 将封面上传进度映射到0-20%
+        setUploadProgress(Math.max(0, Math.min(20, Math.round(progress * 0.2))))
       })
-      // console.log('封面图片上传完成:', imageResult)
+      console.log('封面图片上传完成:', imageResult)
+      setUploadProgress(20)
 
-      // 上传视频文件
-      // console.log('上传视频文件...')
-      const videoResult = await uploadFileToPinata(video, {
-        name: `${title}-video`,
+      // 切换到视频上传阶段
+      setUploadStage('video')
+
+      // 模拟上传视频文件的进度 - 占总进度的75%
+      console.log('开始上传视频文件...')
+      const videoResult = await uploadFileToPinata(video, (progress) => {
+        // 将视频上传进度映射到20-95%
+        setUploadProgress(
+          20 + Math.max(0, Math.min(75, Math.round(progress * 0.75)))
+        )
       })
-      // console.log('视频文件上传完成:', videoResult)
+      console.log('视频文件上传完成:', videoResult)
+      setUploadProgress(95)
 
-      // 创建元数据JSON文件
-      const timestamp = new Date().toISOString()
+      // 切换到元数据上传阶段
+      setUploadStage('metadata')
+
+      // 创建元数据对象
       const metadata = {
         title,
         description: desc,
         coverImageCid: imageResult.cid,
         videoCid: videoResult.cid,
-        timestamp,
+        timestamp: new Date().toISOString(),
+        author: walletAddress,
       }
 
-      // 转换为Blob和File对象
-      const metadataBlob = new Blob([JSON.stringify(metadata)], {
-        type: 'application/json',
-      })
+      console.log('准备上传的元数据:', JSON.stringify(metadata, null, 2))
 
-      const metadataFile = new File([metadataBlob], `${title}-metadata.json`, {
-        type: 'application/json',
-      })
+      // 上传元数据 JSON 并加入指定组 - 占总进度的5%
+      console.log('开始上传元数据...')
+      const metadataResult = await uploadJsonToPinata(
+        metadata,
+        `${title}-metadata.json`,
+        METADATA_GROUP_ID
+      )
+      console.log('元数据文件上传完成:', metadataResult)
 
-      // 上传元数据文件
-      // console.log('上传元数据文件...')
-      const metadataResult = await uploadFileToPinata(metadataFile, {
-        name: `${title}-metadata`,
-        keyvalues: {
-          groupId: METADATA_GROUP_ID,
-        },
-      })
-      // console.log('元数据文件上传完成:', metadataResult)
-
-      // 将元数据文件添加到组
-      // console.log(`添加元数据文件到组 ${METADATA_GROUP_ID}...`)
-      await addFileToGroup(metadataResult.cid, METADATA_GROUP_ID)
-
+      setUploadProgress(100)
+      setUploadStage('complete')
       setIpfsHash(metadataResult.cid)
 
-      // 延迟一下再刷新列表，给IPFS一点时间传播
-      // console.log('等待3秒后刷新视频列表...')
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      // 等待IPFS网络传播并刷新列表
+      console.log('上传全部完成，准备刷新视频列表...')
 
-      // 上传成功后刷新文件列表
-      await getLatestCIDs()
+      // 第一次尝试立即获取最新视频
+      try {
+        await getLatestCIDs()
+        console.log('首次刷新视频列表完成')
+      } catch (refreshError) {
+        console.warn('首次刷新视频列表失败，将在3秒后重试:', refreshError)
+      }
+
+      // 再等待3秒后再次尝试获取，以确保IPFS网络有足够时间传播
+      setTimeout(async () => {
+        try {
+          await getLatestCIDs()
+          console.log('延迟3秒后再次刷新视频列表完成')
+        } catch (delayedRefreshError) {
+          console.error('延迟刷新视频列表失败:', delayedRefreshError)
+        }
+      }, 3000)
     } catch (err) {
       console.error('上传文件失败:', err)
-      setError(`上传失败，请重试`)
+      setError('上传失败，请重试')
     } finally {
-      // 确保无论如何都设置loading为false
       setUploading(false)
     }
   }
 
-  // 初始化时加载最新文件 - 使用useEffect确保只在客户端执行
+  // 初始化时加载最新文件
   useEffect(() => {
     if (!isServer) {
       getLatestCIDs()
-
-      // 设置错误恢复超时，避免永久加载状态
       const loadingTimeout = setTimeout(() => {
         if (loading) {
-          // console.warn('加载超时，自动重置加载状态')
           setLoading(false)
           setError('视频加载失败，请刷新页面重试')
         }
-      }, 10000) // 10秒超时
-
+      }, 10000)
       return () => clearTimeout(loadingTimeout)
     }
-    // 确保在组件挂载时清除错误状态
-    return () => {
-      setError(null)
-    }
-  }, [getLatestCIDs, isServer]) // 移除 loading 依赖，避免循环调用
+    return () => setError(null)
+  }, [getLatestCIDs])
 
   return {
-    videos, // 包含完整元数据的视频列表
-    loading, // 文件列表加载状态
-    error, // 错误信息
-    uploadFile, // 上传文件方法
-    uploading, // 文件上传状态
-    ipfsHash, // 上传文件的 IPFS CID
-    getLatestCIDs, // 导出刷新方法让首页可以调用
-    apiMode, // 当前API模式
+    videos,
+    loading,
+    error,
+    uploadFile,
+    uploading,
+    ipfsHash,
+    getLatestCIDs,
+    uploadProgress,
+    uploadStage,
   }
 }
