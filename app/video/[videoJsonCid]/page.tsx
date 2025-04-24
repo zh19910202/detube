@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo ,useRef} from 'react'
 import { useParams } from 'next/navigation'
 import {
   useSendTransaction,
@@ -10,6 +10,9 @@ import {
 import { parseEther, isAddress } from 'viem'
 import { VideoMetadata } from '../../hooks/usePinata'
 import Image from 'next/image'
+import { handleVideoDecryption } from '../../lib/lit/handleVideoDecryption'
+import { ethers } from 'ethers'
+import { fromByteArray } from 'base64-js'
 
 // 添加防抖函数
 function debounce<T extends (...args: Parameters<T>) => void>(
@@ -47,8 +50,12 @@ const formatDisplayAddress = (address: string): string => {
 }
 
 const VideoPage = () => {
-  const { videoId } = useParams()
+  const { videoJsonCid } = useParams()
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null)
+  const [isDecrypting, setIsDecrypting] = useState(false)
+  const [decryptedVideoUrl, setDecryptedVideoUrl] = useState<string | null>(
+    null
+  )
   const [comments, setComments] = useState<string[]>([])
   const [newComment, setNewComment] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
@@ -67,8 +74,46 @@ const VideoPage = () => {
     useWaitForTransactionReceipt({ hash })
   const { isConnected, address: userAddress } = useAccount() // 获取当前用户的钱包地址
   const [showConfirmation, setShowConfirmation] = useState(false)
-
+  const [walletWithProvider, setWalletWithProvider] = useState<ethers.Signer>()
+  const [decryptError, setDecryptError] = useState<string | null>(null) // 新增解密错误状态
+  const prevDecryptedUrlRef = useRef<string | null>(null)
   // 使用useMemo缓存交易状态，减少状态变化导致的重渲染
+  // 初始化钱包提供者
+  async function initWalletProvider() {
+    try {
+      if (!isConnected || !userAddress) {
+        console.log('钱包未连接或用户地址为空')
+        return
+      }
+
+      console.log('开始初始化钱包 signer')
+
+      // 1. 创建 Metamask 提供者
+      const browserProvider = new ethers.BrowserProvider(window.ethereum)
+
+      // 2. 请求账户访问
+      await browserProvider.send('eth_requestAccounts', [])
+
+      // 3. 获取 signer
+      const signer = await browserProvider.getSigner()
+
+      // 4. 打印 signer 地址
+      const address = await signer.getAddress()
+      console.log('已连接地址:', address)
+
+      // 5. 设置 signer（用于 generateAuthSig）
+      setWalletWithProvider(signer) // signer 即可，无需连接 Lit RPC
+    } catch (error) {
+      console.error('钱包初始化失败:', error)
+      setWalletWithProvider(undefined)
+    }
+  }
+
+  // 使用 Effect 调用
+  useEffect(() => {
+    initWalletProvider()
+  }, [isConnected, userAddress])
+
   const transactionStatus = useMemo(() => {
     if (isTransactionPending || isLoading) return 'pending'
     if (isConfirming) return 'confirming'
@@ -80,14 +125,16 @@ const VideoPage = () => {
   // 获取视频元数据
   useEffect(() => {
     const fetchMetadata = async () => {
-      if (!videoId) return
+      if (!videoJsonCid) return
 
       setIsMetadataLoading(true)
       setMetadataError(null)
 
       try {
         // 从 IPFS 获取元数据 JSON
-        const response = await fetch(`${getPinataGateway()}/ipfs/${videoId}`)
+        const response = await fetch(
+          `${getPinataGateway()}/ipfs/${videoJsonCid}`
+        )
 
         if (!response.ok) {
           throw new Error(`Failed to fetch metadata: ${response.statusText}`)
@@ -98,13 +145,15 @@ const VideoPage = () => {
         // console.log('描述字段:', data.description)
 
         const metadata = {
-          cid: videoId as string,
+          cid: videoJsonCid as string,
           title: data.title || '未命名视频',
           description: data.description || '无描述',
           coverImageCid: data.coverImageCid,
           videoCid: data.videoCid,
           timestamp: data.timestamp,
           author: data.author || '', // 获取作者钱包地址
+          isPublic: data.isPublic || false, // 获取视频的公开状态
+          dataToEncryptHash: data.dataToEncryptHash || '', // 获取原始视频数据的哈希值
         }
 
         // console.log('处理后的元数据:', metadata)
@@ -121,7 +170,7 @@ const VideoPage = () => {
     }
 
     fetchMetadata()
-  }, [videoId])
+  }, [videoJsonCid])
 
   useEffect(() => {
     if (isConfirmed && hash) {
@@ -132,6 +181,31 @@ const VideoPage = () => {
       return () => clearTimeout(timer)
     }
   }, [isConfirmed, hash])
+  // 使用 useRef 跟踪上一个解密 URL
+
+  // 清理解密 URL（组件卸载时）
+  useEffect(() => {
+    return () => {
+      if (prevDecryptedUrlRef.current) {
+        URL.revokeObjectURL(prevDecryptedUrlRef.current)
+        console.log('清理上一解密 URL:', prevDecryptedUrlRef.current)
+      }
+    }
+  }, [])
+
+  // 清理旧的解密 URL（新 URL 设置时）
+  useEffect(() => {
+    if (
+      decryptedVideoUrl &&
+      prevDecryptedUrlRef.current !== decryptedVideoUrl
+    ) {
+      if (prevDecryptedUrlRef.current) {
+        URL.revokeObjectURL(prevDecryptedUrlRef.current)
+        console.log('清理旧解密 URL:', prevDecryptedUrlRef.current)
+      }
+      prevDecryptedUrlRef.current = decryptedVideoUrl
+    }
+  }, [decryptedVideoUrl])
 
   // 处理金额输入变化，使用内联防抖函数
   const handleTipAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -251,7 +325,7 @@ const VideoPage = () => {
     // 确保返回完整URL，包括https://前缀
     const gateway = process.env.NEXT_PUBLIC_PINATA_GW
       ? process.env.NEXT_PUBLIC_PINATA_GW.replace(/^['"]|['"]$/g, '')
-      : 'cyan-fast-mastodon-963.mypinata.cloud'
+      : ''
 
     // 确保URL以https://开头
     return gateway.startsWith('http') ? gateway : `https://${gateway}`
@@ -286,6 +360,43 @@ const VideoPage = () => {
     videoMetadata.coverImageCid
   }`
 
+  // 读取加密视频的二进制数据
+  const fetchEncryptedVideo = async (videoUrl: string): Promise<string> => {
+    try {
+      const response = await fetch(videoUrl)
+      if (!response.ok) {
+        throw new Error(`获取加密视频失败: ${response.statusText}`)
+      }
+
+      // 加载 ArrayBuffer
+      const encryptedArrayBuffer = await response.arrayBuffer()
+      if (!encryptedArrayBuffer || encryptedArrayBuffer.byteLength === 0) {
+        throw new Error('加密文件内容为空')
+      }
+
+      // 转换为 Base64 字符串
+      const uint8Array = new Uint8Array(encryptedArrayBuffer)
+      const ciphertext = fromByteArray(uint8Array)
+      console.log('从 IPFS 加载 ciphertext:', {
+        length: ciphertext.length,
+        url: videoUrl,
+      })
+
+      // 验证 ciphertext
+      if (!ciphertext || typeof ciphertext !== 'string') {
+        throw new Error('无效的 ciphertext：需要 Base64 编码的字符串')
+      }
+
+      return ciphertext
+    } catch (error) {
+      console.error('读取加密视频失败:', error)
+      const message =
+        error instanceof Error
+          ? `读取加密视频失败: ${error.message}`
+          : `读取加密视频失败: ${String(error)}`
+      throw new Error(message)
+    }
+  }
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="container mx-auto p-5">
@@ -293,13 +404,83 @@ const VideoPage = () => {
           {/* 视频播放器 - 占据更多空间 */}
           <div className="w-full lg:w-[70%]">
             <div className="bg-black rounded-lg overflow-hidden">
-              <video
-                src={videoUrl}
-                width="100%"
-                controls
-                autoPlay
-                className="w-full aspect-video object-contain"
-              />
+              {videoMetadata.isPublic ? (
+                <video
+                  src={videoUrl}
+                  width="100%"
+                  controls
+                  autoPlay
+                  className="w-full aspect-video object-contain"
+                />
+              ) : decryptedVideoUrl ? (
+                <video
+                  src={decryptedVideoUrl}
+                  width="100%"
+                  controls
+                  autoPlay
+                  className="w-full aspect-video object-contain"
+                />
+              ) : (
+                <div className="w-full aspect-video flex items-center justify-center bg-gray-900">
+                  <div className="text-center p-6">
+                    <h3 className="text-xl font-medium text-white mb-4">
+                      此视频为加密内容
+                    </h3>
+                    {decryptError && (
+                      <p className="text-red-500 mb-4">{decryptError}</p>
+                    )}
+                    <button
+                      onClick={async () => {
+                        console.log('videoMetadata', videoMetadata)
+                        console.log('userAddress', userAddress)
+                        console.log('walletWithProvider', walletWithProvider)
+                        if (
+                          !videoMetadata ||
+                          !userAddress ||
+                          !walletWithProvider
+                        ) {
+                          setDecryptError('请连接钱包并确保视频信息完整')
+                          return
+                        }
+                        try {
+                          setIsDecrypting(true)
+                          setDecryptError(null)
+                          console.log('开始解密视频...')
+                          const ciphertext: string = await fetchEncryptedVideo(
+                            videoUrl
+                          )
+                          console.log('获取到的加密视频内容:', ciphertext)
+                          const decryptedFile = await handleVideoDecryption(
+                            videoMetadata.dataToEncryptHash!,
+                            ciphertext,
+                            userAddress,
+                            walletWithProvider
+                          )
+                          if (decryptedFile) {
+                            const url = URL.createObjectURL(decryptedFile)
+                            console.log('设置解密视频 URL:', url)
+                            setDecryptedVideoUrl(url)
+                          } else {
+                            setDecryptError('解密失败：无法生成解密文件')
+                          }
+                        } catch (error) {
+                          console.error('解密失败:', error)
+                          const message =
+                            error instanceof Error
+                              ? `解密失败: ${error.message}`
+                              : '解密失败：未知错误'
+                          setDecryptError(message)
+                        } finally {
+                          setIsDecrypting(false)
+                        }
+                      }}
+                      disabled={isDecrypting || !isConnected}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                      {isDecrypting ? '解密中...' : '解密并播放视频'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 视频标题区域 - YouTube风格 */}

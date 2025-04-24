@@ -18,7 +18,7 @@ const PINATA_GW = process.env.NEXT_PUBLIC_PINATA_GW
 let pinata: PinataSDK | null = null
 
 // 元数据JSON文件的组ID
-const METADATA_GROUP_ID = '8d445587-d12f-4803-ad8d-6099e8369a44'
+const METADATA_GROUP_ID = '5c16e640-afc1-4b43-a7cb-110b568fba50'
 
 // 定义视频元数据类型
 export interface VideoMetadata {
@@ -29,6 +29,8 @@ export interface VideoMetadata {
   videoCid: string
   timestamp: string
   author?: string
+  isPublic: boolean
+  dataToEncryptHash?: string
 }
 
 // 用于 SDK 返回的文件类型
@@ -105,6 +107,13 @@ export const usePinata = (limit: number = 8) => {
         videoCid: jsonContent.videoCid,
         timestamp,
         author: jsonContent.author || '',
+        isPublic:
+          jsonContent.isPublic === false
+            ? false
+            : jsonContent.isPublic === true
+            ? true
+            : true,
+        dataToEncryptHash: jsonContent.dataToEncryptHash || '',
       }
     } catch (err) {
       console.error(`解析元数据出错 CID ${cid}:`, err)
@@ -207,7 +216,6 @@ export const usePinata = (limit: number = 8) => {
   // 使用 SDK 上传 JSON 数据并加入组
   const uploadJsonToPinata = async (
     jsonData: object,
-    fileName: string,
     groupId?: string
   ): Promise<{ cid: string; id: string }> => {
     if (!pinata) {
@@ -290,7 +298,9 @@ export const usePinata = (limit: number = 8) => {
     image: File,
     video: File,
     desc: string,
-    walletAddress: string
+    walletAddress: string,
+    isPublic: boolean,
+    dataToEncryptHash?: string
   ) => {
     if (isServer || !pinata) {
       setError('Pinata SDK 未初始化')
@@ -343,6 +353,8 @@ export const usePinata = (limit: number = 8) => {
         videoCid: videoResult.cid,
         timestamp: new Date().toISOString(),
         author: walletAddress,
+        isPublic,
+        ...(isPublic === false ? { dataToEncryptHash } : {}),
       }
 
       console.log('准备上传的元数据:', JSON.stringify(metadata, null, 2))
@@ -351,7 +363,6 @@ export const usePinata = (limit: number = 8) => {
       console.log('开始上传元数据...')
       const metadataResult = await uploadJsonToPinata(
         metadata,
-        `${title}-metadata.json`,
         METADATA_GROUP_ID
       )
       console.log('元数据文件上传完成:', metadataResult)
