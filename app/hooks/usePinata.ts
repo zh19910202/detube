@@ -65,7 +65,6 @@ export const usePinata = (limit: number = 8) => {
           pinataGateway: PINATA_GW,
         })
         console.log('Pinata SDK 初始化成功')
-        console.log('Pinata 对象:', pinata)
       } catch (err) {
         console.error('Pinata SDK 初始化失败:', err)
       }
@@ -74,16 +73,15 @@ export const usePinata = (limit: number = 8) => {
 
   // 从 IPFS 获取元数据 JSON 文件内容
   const fetchMetadata = async (cid: string): Promise<VideoMetadata | null> => {
-    if (!pinata) {
-      console.error('Pinata SDK 未初始化')
-      return null
-    }
     try {
-      const response = await pinata.gateways.public.get(cid)
-      const jsonContent =
-        typeof response.data === 'string'
-          ? JSON.parse(response.data)
-          : response.data
+      // 使用API路由代理请求，避免CORS问题
+      const response = await fetch(`/api/pinata?cid=${cid}`)
+
+      if (!response.ok) {
+        throw new Error(`获取元数据失败: ${response.statusText}`)
+      }
+
+      const jsonContent = await response.json()
 
       const isValidMetadata =
         jsonContent &&
@@ -121,49 +119,60 @@ export const usePinata = (limit: number = 8) => {
     }
   }
 
-  // 使用 SDK 获取元数据组文件列表
+  // 使用API路由获取元数据组文件列表
   const getFiles = async (pageLimit: number) => {
-    if (isServer || !pinata) {
-      console.error('Pinata SDK 未初始化或在服务器端运行')
+    if (isServer) {
+      console.error('服务器端环境无法获取文件列表')
       return []
     }
     try {
       console.log(
         `尝试获取组 ${METADATA_GROUP_ID} 的文件，限制 ${pageLimit} 条`
       )
-      const groupResponse = await pinata.files.public
-        .list()
-        .group(METADATA_GROUP_ID)
+
+      // 使用API路由代理请求获取文件列表
+      const response = await fetch(
+        `/api/pinata?action=list&groupId=${METADATA_GROUP_ID}`
+      )
+
+      if (!response.ok) {
+        throw new Error(`获取文件列表失败: ${response.statusText}`)
+      }
+
+      const groupResponse = await response.json()
       console.log('groupResponse', groupResponse)
       console.log('组响应:', JSON.stringify(groupResponse, null, 2))
 
-      const files = groupResponse.files || []
-      if (!files || !Array.isArray(files)) {
-        console.error('获取组文件失败：无效的 files 字段')
+      // 处理Pinata API返回的数据结构
+      const rows = groupResponse.rows || []
+      if (!rows || !Array.isArray(rows)) {
+        console.error('获取组文件失败：无效的 rows 字段')
         return []
       }
 
-      if (files.length === 0) {
+      if (rows.length === 0) {
         console.log(`组 ${METADATA_GROUP_ID} 中没有文件`)
         return []
       }
 
-      const mappedFiles = files
-        .slice(0, pageLimit)
-        .map(
-          (file: {
-            cid?: string
-            ipfs_pin_hash?: string
-            created_at?: string
-            date_created?: string
-          }) => ({
-            cid: file.cid || file.ipfs_pin_hash || '',
-            created_at:
-              file.created_at ||
-              file.date_created ||
-              '2023-01-01T00:00:00.000Z',
-          })
-        )
+      // 将API返回的数据结构转换为我们需要的格式
+      const files = rows
+
+      const mappedFiles = files.slice(0, pageLimit).map(
+        (file: {
+          ipfs_pin_hash?: string
+          date_pinned?: string
+          metadata?: {
+            name?: string
+            keyvalues?: {
+              group?: string
+            }
+          }
+        }) => ({
+          cid: file.ipfs_pin_hash || '',
+          created_at: file.date_pinned || '2023-01-01T00:00:00.000Z',
+        })
+      )
 
       console.log(`获取到 ${mappedFiles.length} 个文件`)
       return mappedFiles
@@ -173,39 +182,67 @@ export const usePinata = (limit: number = 8) => {
     }
   }
 
-  // 使用 SDK 上传文件到 Pinata（不加入组）
+  // 使用API路由上传文件到Pinata（不加入组）
   const uploadFileToPinata = async (
     file: File,
     onProgress?: (progress: number) => void
   ): Promise<{ cid: string; id: string }> => {
-    if (!pinata) {
-      throw new Error('Pinata SDK 未初始化')
+    // 如果需要进度更新，先显示初始进度0%
+    if (onProgress) {
+      onProgress(0)
     }
 
-    // 直接使用SDK方法，不再使用自定义XHR实现
-    // SDK内部已实现上传功能，我们只需在上传前和上传后更新进度
     try {
-      // 如果需要进度更新，先显示初始进度0%
+      // 创建FormData对象用于文件上传
+      const formData = new FormData()
+      formData.append('file', file)
+
+      // 模拟上传进度
+      let progressInterval: NodeJS.Timeout | null = null
       if (onProgress) {
-        onProgress(0)
+        let currentProgress = 0
+        progressInterval = setInterval(() => {
+          // 模拟上传进度，最大到90%（保留最后10%给服务器处理时间）
+          if (currentProgress < 90) {
+            currentProgress += 5
+            onProgress(currentProgress)
+          }
+        }, 500)
       }
 
-      // 使用SDK上传文件
-      const result = await pinata.upload.public.file(file)
+      // 使用API路由代理上传请求
+      const response = await fetch('/api/pinata', {
+        method: 'POST',
+        body: formData,
+        // 不设置Content-Type，让浏览器自动设置multipart/form-data和boundary
+      })
+
+      // 清除进度模拟定时器
+      if (progressInterval) {
+        clearInterval(progressInterval)
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`上传文件失败: ${response.statusText}, ${errorText}`)
+      }
+
+      // 获取响应数据
+      const result = await response.json()
       console.log('文件上传结果:', result)
 
-      if (!result || !result.cid) {
-        throw new Error('上传结果中没有找到有效的 CID')
-      }
-
-      // 上传完成后，如果有进度回调则显示100%
+      // 设置最终进度为100%
       if (onProgress) {
         onProgress(100)
       }
+      
+      if (!result || !result.IpfsHash) {
+        throw new Error('上传结果中没有找到有效的CID')
+      }
 
       return {
-        cid: result.cid,
-        id: result.id || result.cid,
+        cid: result.IpfsHash,
+        id: result.IpfsHash,
       }
     } catch (error) {
       console.error('SDK 上传文件失败:', error)
@@ -213,26 +250,61 @@ export const usePinata = (limit: number = 8) => {
     }
   }
 
-  // 使用 SDK 上传 JSON 数据并加入组
+  // 使用API路由上传JSON数据并加入组
   const uploadJsonToPinata = async (
     jsonData: object,
     groupId?: string
   ): Promise<{ cid: string; id: string }> => {
-    if (!pinata) {
-      throw new Error('Pinata SDK 未初始化')
-    }
     try {
-      // 修复类型问题，将options作为可选参数传递
-      const upload = pinata.upload.public.json(jsonData)
-      const result = groupId ? await upload.group(groupId) : await upload
+      // 准备请求数据
+      const requestData = {
+        data: jsonData,
+        options: {
+          metadata: {
+            name: 'Video Metadata',
+          },
+          pinataOptions: groupId
+            ? {
+                customPinPolicy: {
+                  regions: [
+                    {
+                      id: 'FRA1',
+                      desiredReplicationCount: 1,
+                    },
+                  ],
+                },
+                pinataMetadata: {
+                  keyvalues: {
+                    group: groupId,
+                  },
+                },
+              }
+            : {},
+        },
+      }
+
+      // 使用API路由代理上传请求
+      const response = await fetch('/api/pinata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`上传JSON失败: ${response.statusText}`)
+      }
+
+      const result = await response.json()
       console.log('JSON 上传结果:', result)
 
-      if (!result || !result.cid) {
-        throw new Error('上传结果中没有找到有效的 CID')
+      if (!result || !result.IpfsHash) {
+        throw new Error('上传结果中没有找到有效的IpfsHash')
       }
 
       return {
-        cid: result.cid,
+        cid: result.IpfsHash,
         id: result.id || result.cid,
       }
     } catch (error) {
