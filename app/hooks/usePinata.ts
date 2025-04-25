@@ -18,7 +18,7 @@ const PINATA_GW = process.env.NEXT_PUBLIC_PINATA_GW
 let pinata: PinataSDK | null = null
 
 // 元数据JSON文件的组ID
-const METADATA_GROUP_ID = '5c16e640-afc1-4b43-a7cb-110b568fba50'
+const METADATA_GROUP_ID = process.env.NEXT_PUBLIC_METADATA_GROUP_ID || ''
 
 // 定义视频元数据类型
 export interface VideoMetadata {
@@ -235,7 +235,7 @@ export const usePinata = (limit: number = 8) => {
       if (onProgress) {
         onProgress(100)
       }
-      
+
       if (!result || !result.IpfsHash) {
         throw new Error('上传结果中没有找到有效的CID')
       }
