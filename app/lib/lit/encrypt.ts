@@ -11,12 +11,14 @@ export interface EncryptResponse {
 export const encryptVideo = async (
   file: File,
   accessControlConditions: AccessControlConditions,
-  chain: string = process.env.NEXT_PUBLIC_LIT_CHAIN || 'ethereum'
+  chain: string = process.env.NEXT_PUBLIC_LIT_CHAIN || 'sepolia'
 ): Promise<{ dataToEncryptHash: string; newFile: File }> => {
   try {
     // 检查浏览器环境和 WebCrypto 支持
     if (!window.crypto || !window.crypto.subtle) {
-      throw new Error('浏览器不支持 WebCrypto API，请使用现代浏览器并确保 HTTPS')
+      throw new Error(
+        '浏览器不支持 WebCrypto API，请使用现代浏览器并确保 HTTPS'
+      )
     }
 
     // 获取 Lit 客户端
@@ -48,14 +50,15 @@ export const encryptVideo = async (
     }
 
     // 执行加密
-    const { ciphertext, dataToEncryptHash }: EncryptResponse = await encryptFile(
-      {
-        chain,
-        accessControlConditions,
-        file,
-      },
-      litClient
-    )
+    const { ciphertext, dataToEncryptHash }: EncryptResponse =
+      await encryptFile(
+        {
+          chain,
+          accessControlConditions,
+          file,
+        },
+        litClient
+      )
 
     // 处理 Base64 编码的密文
     console.log('ciphertext1:', ciphertext)
@@ -77,9 +80,12 @@ export const encryptVideo = async (
     }
   } catch (error) {
     console.error('加密失败:', error)
-    const message = error instanceof Error
-      ? `加密失败: ${error.message}${error.stack ? `\nStack: ${error.stack}` : ''}`
-      : `加密失败: ${String(error)}`
+    const message =
+      error instanceof Error
+        ? `加密失败: ${error.message}${
+            error.stack ? `\nStack: ${error.stack}` : ''
+          }`
+        : `加密失败: ${String(error)}`
     throw new Error(message)
   }
 }

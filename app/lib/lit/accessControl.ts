@@ -1,91 +1,71 @@
 // app/lib/lit/accessControl.ts
+// import { EvmContractConditions } from '@lit-protocol/types'
+// 自定义智能合约方法验证示例 - 使用正确的evmContractConditions格式
+// export const  evmContractConditions: EvmContractConditions = [
+//   {
+//     contractAddress: '0x946F4b6EA3AD07Cd4eed93D1baD54Ac2c948e0C0',
+//     functionName: 'hasRole',
+//     functionParams: ['3', '0x2d7B3e18D45846DA09D78e3644F15BD4aafa634d'],
+//     functionAbi: {
+//       inputs: [
+//         {
+//           internalType: 'uint64',
+//           name: 'roleId',
+//           type: 'uint64',
+//         },
+//         {
+//           internalType: 'address',
+//           name: 'account',
+//           type: 'address',
+//         },
+//       ],
+//       name: 'hasRole',
+//       outputs: [
+//         {
+//           internalType: 'bool',
+//           name: 'isMember',
+//           type: 'bool',
+//         },
+//         {
+//           internalType: 'uint32',
+//           name: 'executionDelay',
+//           type: 'uint32',
+//         },
+//       ],
+//       stateMutability: 'view',
+//       type: 'function',
+//     },
+//     chain: 'sepolia',
+//     returnValueTest: {
+//       key: 'isMember',
+//       comparator: '=',
+//       value: 'true',
+//     },
+//   },
+// ]
 
-// 基本以太坊地址访问控制条件
-export const accessControlConditions = [
-  {
-    contractAddress: '',
-    standardContractType: '',
-    chain: 'ethereum',
-    method: '',
-    parameters: [':userAddress'],
-    returnValueTest: {
-      comparator: '=',
-      value: '0x7073f449406B2BB7A7B68AB5EDA6546e429546D3',
-    },
-  },
-]
+// 备注：此配置遵循Lit Protocol官方文档中的evmContractConditions格式
+// 参考文档：https://developer.litprotocol.com/sdk/access-control/evm/custom-contract-calls
+// 关键字段说明：
+// - contractAddress: 合约地址
+// - functionName: 要调用的合约方法名
+// - functionParams: 传递给合约方法的参数，:userAddress为特殊占位符
+// - functionAbi: 合约方法的ABI定义
+// - chain: 区块链网络
+// - returnValueTest: 定义访问控制条件的测试规则
 
-// ERC721 NFT持有验证示例
-export const nftAccessControlConditions = [
-  {
-    contractAddress: '0x...', // NFT合约地址
-    standardContractType: 'ERC721',
-    chain: 'ethereum',
-    method: 'balanceOf',
-    parameters: [':userAddress'],
-    returnValueTest: {
-      comparator: '>',
-      value: '0', // 持有至少1个NFT
+export const accessControlConditions = (value: string) => {
+  return [
+    {
+      contractAddress: '',
+      standardContractType: '',
+      chain: 'ethereum',
+      method: '',
+      parameters: [':userAddress'],
+      returnValueTest: {
+        comparator: '=',
+        value,
+      },
     },
-  },
-]
-
-// ERC1155 NFT持有验证示例
-export const erc1155AccessControlConditions = [
-  {
-    contractAddress: '0x...', // ERC1155合约地址
-    standardContractType: 'ERC1155',
-    chain: 'ethereum',
-    method: 'balanceOf',
-    parameters: [':userAddress', '1'], // 1是token ID
-    returnValueTest: {
-      comparator: '>',
-      value: '0', // 持有至少1个指定token
-    },
-  },
-]
-
-// ERC20 Token余额验证示例
-export const tokenBalanceAccessControlConditions = [
-  {
-    contractAddress: '0x...', // ERC20合约地址
-    standardContractType: 'ERC20',
-    chain: 'ethereum',
-    method: 'balanceOf',
-    parameters: [':userAddress'],
-    returnValueTest: {
-      comparator: '>=',
-      value: '1000000000000000000', // 持有至少1个token (18位小数)
-    },
-  },
-]
-
-// 自定义智能合约方法验证示例
-export const customContractAccessControlConditions = [
-  {
-    contractAddress: '0x...', // 自定义合约地址
-    standardContractType: 'CustomContract',
-    chain: 'ethereum',
-    method: 'hasAccess', // 自定义方法
-    parameters: [':userAddress'],
-    returnValueTest: {
-      comparator: '=',
-      value: 'true', // 方法返回true
-    },
-  },
-]
-
-// 多链支持示例 (Polygon)
-export const polygonAccessControlConditions = [
-  {
-    contractAddress: '0x...', // Polygon上的合约地址
-    standardContractType: 'ERC721',
-    chain: 'polygon',
-    method: 'balanceOf',
-    parameters: [':userAddress'],
-    returnValueTest: {
-      comparator: '>',
-      value: '0',
-    },
-  },
-]
+  ]
+}

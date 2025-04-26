@@ -15,16 +15,16 @@ export const getSessionSigs = async (
   walletWithProvider: ethers.Wallet | ethers.Signer
 ) => {
   try {
-    
     const client = await getLitClient()
-    const resourceString = await LitAccessControlConditionResource.generateResourceString(
-      accessControlConditions,
-      dataToEncryptHash
-    )
+    const resourceString =
+      await LitAccessControlConditionResource.generateResourceString(
+        accessControlConditions,
+        dataToEncryptHash
+      )
     console.log('🔐 生成的 resourceString:', resourceString)
 
     const sessionSigs = await client.getSessionSigs({
-      chain: 'ethereum',
+      chain: process.env.NEXT_PUBLIC_LIT_CHAIN || 'sepolia',
       expiration: new Date(Date.now() + 1000 * 60 * 10).toISOString(),
       resourceAbilityRequests: [
         {

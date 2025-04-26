@@ -8,6 +8,7 @@ import type {
 
 import { getLitClient } from './litClient'
 
+
 export const decryptVideo = async (
   ciphertext: string,
   accessControlConditions: AccessControlConditions,
@@ -19,7 +20,7 @@ export const decryptVideo = async (
     // 解密文件
     const decryptedFile = await decryptToFile(
       {
-        chain: 'ethereum',
+        chain:process.env.NEXT_PUBLIC_LIT_CHAIN || 'sepolia',
         ciphertext,
         dataToEncryptHash,
         accessControlConditions,

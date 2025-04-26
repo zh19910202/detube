@@ -51,6 +51,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
                   src={coverImageUrl}
                   alt={title}
                   fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  priority
                   className="object-cover"
                   onError={handleImageError}
                 />

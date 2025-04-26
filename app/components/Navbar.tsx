@@ -164,14 +164,13 @@ const Navbar: React.FC = () => {
       let dataToEncryptHash: string | undefined
       // 如果是非公开视频，先加密
       if (!isPublic) {
-        
         setIsEncrypting(true)
         try {
           const result = await encryptVideo(
             selectedFile,
-            accessControlConditions
+            accessControlConditions(address) // 使用已存在的 address 变量
           )
-          
+
           videoFile = result.newFile
           dataToEncryptHash = result.dataToEncryptHash
         } finally {

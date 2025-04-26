@@ -32,7 +32,9 @@ export const getLitClient = async (): Promise<LitNodeClient> => {
       throw new Error('Lit 客户端仅支持浏览器环境')
     }
     if (!window.crypto || !window.crypto.subtle) {
-      throw new Error('浏览器不支持 WebCrypto API，请使用现代浏览器并确保 HTTPS')
+      throw new Error(
+        '浏览器不支持 WebCrypto API，请使用现代浏览器并确保 HTTPS'
+      )
     }
     if (!window.ethereum) {
       throw new Error('请安装 MetaMask 或其他钱包扩展')
@@ -46,7 +48,9 @@ export const getLitClient = async (): Promise<LitNodeClient> => {
       LIT_NETWORK.Datil,
       LIT_NETWORK.Custom,
     ]
-    const litNetwork: LitNetwork = validNetworks.includes(envNetwork as LitNetwork)
+    const litNetwork: LitNetwork = validNetworks.includes(
+      envNetwork as LitNetwork
+    )
       ? (envNetwork as LitNetwork)
       : LIT_NETWORK.DatilDev
 
@@ -54,13 +58,20 @@ export const getLitClient = async (): Promise<LitNodeClient> => {
     litClientInstance = new LitNodeClient({
       litNetwork,
       debug: process.env.NODE_ENV === 'development',
+      // 在生产环境中禁用开发模式警告
+      ...(process.env.NODE_ENV === 'production'
+        ? { enableDevelopmentMode: false }
+        : {}),
     })
 
     // 设置连接超时（显式类型断言）
     connectionPromise = Promise.race<void>([
       litClientInstance.connect() as Promise<void>,
       new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error('Lit 客户端连接超时')), CONNECT_TIMEOUT)
+        setTimeout(
+          () => reject(new Error('Lit 客户端连接超时')),
+          CONNECT_TIMEOUT
+        )
       ),
     ])
 
@@ -78,7 +89,11 @@ export const getLitClient = async (): Promise<LitNodeClient> => {
         throw new Error('未连接钱包，请在 MetaMask 中授权')
       }
     } catch (error) {
-      throw new Error(`钱包连接失败: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(
+        `钱包连接失败: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
     }
 
     console.log('Lit 客户端初始化成功:', { network: litNetwork })
@@ -88,9 +103,10 @@ export const getLitClient = async (): Promise<LitNodeClient> => {
     // 清理失败的实例
     litClientInstance = null
     connectionPromise = null
-    const message = error instanceof Error
-      ? `Lit 客户端初始化失败: ${error.message}`
-      : 'Lit 客户端初始化失败: 未知错误'
+    const message =
+      error instanceof Error
+        ? `Lit 客户端初始化失败: ${error.message}`
+        : 'Lit 客户端初始化失败: 未知错误'
     throw new Error(message)
   } finally {
     // 清理连接承诺
