@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo ,useRef} from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import {
   useSendTransaction,
@@ -49,6 +49,40 @@ const formatDisplayAddress = (address: string): string => {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
 }
 
+// 订阅合约ABI
+const subscriptionContractABI = [
+  {
+    inputs: [],
+    name: 'mint',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'address',
+        name: 'user',
+        type: 'address',
+      },
+    ],
+    name: 'balanceOf',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+]
+
+// 订阅合约地址 - 这里使用README中提到的示例地址，实际使用时应替换为真实地址
+const SUBSCRIPTION_CONTRACT_ADDRESS =
+  '0x76C6D6A66f8379660B22B0540Fd4fc9dbD2CA53B'
+
 const VideoPage = () => {
   const { videoJsonCid } = useParams()
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null)
@@ -64,6 +98,11 @@ const VideoPage = () => {
   const [tipAmount, setTipAmount] = useState<string>('0.01') // 默认打赏金额为 0.01 ETH
   const [displayAmount, setDisplayAmount] = useState<string>('0.01') // 用于显示的金额，减少重渲染
   const [tipError, setTipError] = useState<string | null>(null) // 新增错误状态
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(false) // 订阅状态
+  const [isSubscribing, setIsSubscribing] = useState<boolean>(false) // 订阅中状态
+  const [subscribeError, setSubscribeError] = useState<string | null>(null) // 订阅错误状态
+  const [showSubscribeConfirmation, setShowSubscribeConfirmation] =
+    useState<boolean>(false) // 订阅确认状态
   const {
     data: hash,
     sendTransaction,
@@ -114,6 +153,74 @@ const VideoPage = () => {
     initWalletProvider()
   }, [isConnected, userAddress])
 
+  // 单独的Effect用于检查订阅状态
+  useEffect(() => {
+    // 当钱包连接时，立即检查订阅状态
+    if (isConnected && userAddress) {
+      checkSubscriptionStatus()
+    }
+  }, [isConnected, userAddress])
+
+  // 检查用户是否已订阅
+  const checkSubscriptionStatus = async () => {
+    if (!isConnected || !userAddress) {
+      return
+    }
+
+    try {
+      // 创建合约实例
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const contract = new ethers.Contract(
+        SUBSCRIPTION_CONTRACT_ADDRESS,
+        subscriptionContractABI,
+        provider
+      )
+
+      // 调用balanceOf方法检查用户是否持有订阅NFT
+      const balance = await contract.balanceOf(userAddress)
+      setIsSubscribed(balance > 0)
+      console.log('订阅状态:', balance > 0 ? '已订阅' : '未订阅')
+    } catch (error) {
+      console.error('检查订阅状态失败:', error)
+      setIsSubscribed(false)
+    }
+  }
+
+  // 处理订阅
+  const handleSubscribe = async () => {
+    if (!isConnected || !userAddress) {
+      setSubscribeError('请先连接钱包后再订阅！')
+      return
+    }
+
+    // 如果已经订阅，则不需要再次订阅
+    if (isSubscribed) {
+      // 已订阅状态下不显示错误信息，直接返回
+      return
+    }
+
+    setIsSubscribing(true)
+    setSubscribeError(null)
+
+    try {
+      // 发送交易调用合约的mint方法并支付0.1 ETH
+      await sendTransaction({
+        to: SUBSCRIPTION_CONTRACT_ADDRESS,
+        value: parseEther('0.1'), // 固定支付0.1 ETH
+        data: '0x6a627842', // mint方法的函数选择器
+      })
+
+      // 交易发送成功后，等待确认
+      // 注意：实际确认会在useEffect中通过isConfirmed状态监控
+    } catch (err) {
+      console.error('订阅失败:', err)
+      setSubscribeError('订阅失败，请重试！')
+    } finally {
+      setIsSubscribing(false)
+    }
+  }
+
+  // 交易状态 - 用于打赏功能
   const transactionStatus = useMemo(() => {
     if (isTransactionPending || isLoading) return 'pending'
     if (isConfirming) return 'confirming'
@@ -121,6 +228,15 @@ const VideoPage = () => {
     if (error) return 'error'
     return 'idle'
   }, [isTransactionPending, isLoading, isConfirming, showConfirmation, error])
+
+  // 订阅交易状态 - 用于订阅功能
+  const subscriptionStatus = useMemo(() => {
+    if (isSubscribing) return 'pending'
+    if (isConfirming && !showSubscribeConfirmation) return 'confirming'
+    if (showSubscribeConfirmation) return 'success'
+    if (error) return 'error'
+    return 'idle'
+  }, [isSubscribing, isConfirming, showSubscribeConfirmation, error])
 
   // 获取视频元数据
   useEffect(() => {
@@ -174,9 +290,16 @@ const VideoPage = () => {
 
   useEffect(() => {
     if (isConfirmed && hash) {
-      setShowConfirmation(true) // 显示确认消息
+      // 显示确认消息
+      setShowConfirmation(true)
+      setShowSubscribeConfirmation(true)
+
+      // 如果交易确认成功，更新订阅状态
+      checkSubscriptionStatus()
+
       const timer = setTimeout(() => {
         setShowConfirmation(false)
+        setShowSubscribeConfirmation(false)
       }, 2000)
       return () => clearTimeout(timer)
     }
@@ -605,10 +728,72 @@ const VideoPage = () => {
               </div>
 
               <div className="mt-3 md:mt-0 flex flex-wrap md:flex-nowrap items-center space-y-3 md:space-y-0 md:space-x-3 w-full md:w-auto">
-                {/* 订阅按钮 */}
-                <button className="w-full md:w-auto px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-full transition-all">
-                  订阅
-                </button>
+                <div className="relative">
+                  {/* 订阅按钮 */}
+                  <button
+                    onClick={handleSubscribe}
+                    disabled={!isConnected || isSubscribing || isSubscribed}
+                    className={`w-full md:w-auto px-6 py-2 font-medium rounded-full transition-all ${
+                      isSubscribed
+                        ? 'bg-gray-600 text-white cursor-not-allowed'
+                        : isSubscribing
+                        ? 'bg-gray-600 text-white cursor-wait'
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}>
+                    {isSubscribing ? (
+                      <>
+                        <span className="inline-block mr-2">订阅中</span>
+                        <svg
+                          className="inline-block animate-spin h-4 w-4"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </>
+                    ) : isSubscribed ? (
+                      '已订阅'
+                    ) : (
+                      '订阅'
+                    )}
+                  </button>
+
+                  {/* 订阅状态提示 */}
+                  {subscribeError && (
+                    <div className="absolute -bottom-10 left-0 w-full text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                      {subscribeError}
+                    </div>
+                  )}
+
+                  {/* 订阅交易状态显示 */}
+                  {!isConnected && (
+                    <div className="absolute -bottom-10 left-0 w-full text-sm text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
+                      请连接钱包以订阅频道
+                    </div>
+                  )}
+
+                  {isConnected && subscriptionStatus === 'confirming' && (
+                    <div className="absolute -bottom-10 left-0 w-full text-sm text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
+                      订阅交易确认中...
+                    </div>
+                  )}
+
+                  {showSubscribeConfirmation && (
+                    <div className="absolute -bottom-10 left-0 w-full text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200">
+                      订阅成功！
+                    </div>
+                  )}
+                </div>
 
                 {/* 打赏作者控件 */}
                 <div className="flex items-center md:w-auto space-x-2 w-full">

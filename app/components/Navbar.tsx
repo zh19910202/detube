@@ -168,7 +168,7 @@ const Navbar: React.FC = () => {
         try {
           const result = await encryptVideo(
             selectedFile,
-            accessControlConditions(address) // 使用已存在的 address 变量
+            accessControlConditions() // 使用已存在的 address 变量
           )
 
           videoFile = result.newFile

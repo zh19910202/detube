@@ -26,7 +26,7 @@ export const handleVideoDecryption = async (
 
     // 获取会话签名
     const sigs = await getSessionSigs(
-      accessControlConditions(ethersWallet),
+      accessControlConditions(),
       dataToEncryptHash,
       ethersWallet,
       walletWithProvider
@@ -37,7 +37,7 @@ export const handleVideoDecryption = async (
     // 解密视频
     const decryptedFile = await decryptVideo(
       ciphertext,
-      accessControlConditions(ethersWallet),
+      accessControlConditions(),
       dataToEncryptHash,
       sigs
     )

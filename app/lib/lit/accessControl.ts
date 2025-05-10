@@ -54,18 +54,20 @@
 // - chain: 区块链网络
 // - returnValueTest: 定义访问控制条件的测试规则
 
-export const accessControlConditions = (value: string) => {
+export const accessControlConditions = () => {
   return [
     {
-      contractAddress: '',
-      standardContractType: '',
-      chain: 'ethereum',
-      method: '',
-      parameters: [':userAddress'],
+      contractAddress: '0x76C6D6A66f8379660B22B0540Fd4fc9dbD2CA53B',
+      standardContractType: 'ERC721',
+      chain: 'sepolia',
+      method: 'balanceOf',
+      parameters: [
+        ':userAddress'
+      ],
       returnValueTest: {
-        comparator: '=',
-        value,
-      },
-    },
+        comparator: '>',
+        value: '0'
+      }
+    }
   ]
 }

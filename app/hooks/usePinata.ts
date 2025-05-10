@@ -478,7 +478,7 @@ export const usePinata = (limit: number = 8) => {
       const loadingTimeout = setTimeout(() => {
         if (loading) {
           setLoading(false)
-          setError('视频加载失败，请刷新页面重试')
+          // setError('视频加载失败，请刷新页面重试')
         }
       }, 10000)
       return () => clearTimeout(loadingTimeout)
