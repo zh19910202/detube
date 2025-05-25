@@ -4,85 +4,104 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { VideoMetadata } from '../hooks/usePinata'
 import { useState, useEffect } from 'react'
+import { formatDistanceToNow } from 'date-fns'
 
 interface VideoCardProps {
   video: VideoMetadata
 }
 
+const formatDisplayAddress = (address?: string): string => {
+  if (!address) return 'Unknown Creator'
+  if (address.length <= 10) return address
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+}
+
 const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
-  const { title, description, coverImageCid, videoCid, cid, isPublic } = video
+  const {
+    title,
+    description,
+    coverImageCid,
+    cid,
+    isPublic,
+    timestamp,
+    author,
+  } = video
   const [imageError, setImageError] = useState(false)
-  console.log('isPublic', isPublic, title)
-  // 调试：记录 isPublic 状态
+
   useEffect(() => {
-    console.log(`VideoCard: ${title}, isPublic: ${isPublic}`)
+    // console.log(`VideoCard: ${title}, isPublic: ${isPublic}`)
   }, [title, isPublic])
 
-  // 判断是否有封面图片CID
   const hasCoverImage = coverImageCid && coverImageCid.length > 0
-
-  // 如果有封面图，使用它；否则使用默认图片
   const coverImageUrl = hasCoverImage
     ? `https://${process.env.NEXT_PUBLIC_PINATA_GW}/ipfs/${coverImageCid}`
-    : 'https://via.placeholder.com/300x200?text=无封面'
+    : ''
 
-  // 当图片加载失败时调用
   const handleImageError = () => {
     setImageError(true)
-    console.log(`封面图片加载失败: ${coverImageUrl}`)
   }
 
+  const timeAgo = timestamp
+    ? formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+    : ''
+
   return (
-    <div
-      className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-300 shadow-lg ${
-        isPublic
-          ? 'bg-white hover:shadow-2xl'
-          : 'bg-red-50 opacity-85 hover:opacity-100'
-      }`}
-      aria-label={isPublic ? '公开视频' : '私有视频'}
-      data-testid={isPublic ? 'public-video' : 'private-video'}>
-      {/* 通过 Link 跳转到 VideoPage */}
-      <Link href={`/video/${cid}`} passHref>
-        <div>
-          <div className="relative w-full h-48 bg-gray-200">
-            {!imageError ? (
-              <>
-                <Image
-                  src={coverImageUrl}
-                  alt={title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                  priority
-                  className="object-cover"
-                  onError={handleImageError}
-                />
-              </>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-300">
-                <div className="text-center p-4">
-                  <p className="text-black text-sm font-medium">封面不可用</p>
-                  <p className="text-black text-xs mt-1">
-                    视频ID: {videoCid.substring(0, 8)}...
-                  </p>
-                </div>
+    <div className="relative group bg-primary border border-secondary rounded-xl shadow-xl hover:shadow-2xl hover:border-accent/50 transform hover:-translate-y-1 transition-all duration-300 ease-in-out flex flex-col">
+      <Link
+        href={`/video/${cid}`}
+        passHref
+        className="block flex flex-col flex-grow">
+        <div className="relative w-full aspect-video overflow-hidden rounded-t-xl bg-secondary">
+          {hasCoverImage && !imageError ? (
+            <Image
+              src={coverImageUrl}
+              alt={title}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
+              onError={handleImageError}
+              priority
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center p-4">
+                <p className="text-gray-400 text-sm font-medium">
+                  Cover not available
+                </p>
               </div>
+            </div>
+          )}
+          {/* Privacy Badge/Text */}
+          <div className="absolute top-3 right-3 z-10">
+            {!isPublic ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent text-background">
+                {/* <LockClosedIcon className="h-4 w-4 mr-1.5" /> Optional Icon */}
+                Private
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/70 text-gray-300">
+                {/* <LockOpenIcon className="h-4 w-4 mr-1.5" /> Optional Icon */}
+                Public
+              </span>
             )}
           </div>
-          <div className="p-5">
-            <div className="flex items-center">
-              <h3
-                className={`text-xl font-bold line-clamp-1 flex-grow ${
-                  isPublic ? 'text-black' : 'text-red-700'
-                }`}>
-                {title}
-              </h3>
-            </div>
+        </div>
+        <div className="p-4 flex flex-col flex-grow">
+          <h3 className="font-bold text-lg text-foreground group-hover:text-accent transition-colors duration-200 line-clamp-2 mb-2">
+            {title}
+          </h3>
+          <p className="text-gray-400 text-sm line-clamp-3 mb-2 flex-grow">
+            {description || 'No description available.'}
+          </p>
+          <div className="mt-auto pt-2 border-t border-secondary/30">
             <p
-              className={`text-base mt-3 line-clamp-2 ${
-                isPublic ? 'text-gray-800' : 'text-red-700'
-              }`}>
-              {description}
+              className="text-xs text-gray-500 truncate"
+              title={author ? author : 'Unknown Creator'}>
+              By: {formatDisplayAddress(author)}
             </p>
+            {timeAgo && (
+              <p className="text-xs text-gray-500 mt-0.5">{timeAgo}</p>
+            )}
           </div>
         </div>
       </Link>

@@ -79,84 +79,95 @@ const Comments: React.FC<CommentsProps> = ({ videoId }) => {
 
   return (
     <div className="mt-8">
-      <h3 className="text-xl font-semibold mb-4 text-white">Comments</h3>
+      <h3 className="text-xl font-semibold mb-4 text-foreground">
+        Comments ({comments.length})
+      </h3>
 
       {/* Comment submission form */}
       {isConnected ? (
         <form onSubmit={handleSubmitComment} className="mb-6">
           <textarea
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-gray-700 border-gray-600 text-white"
+            className="w-full p-3 bg-secondary border border-secondary text-foreground rounded-lg focus:ring-2 focus:ring-accent focus:border-accent placeholder-gray-500 transition-colors"
             rows={3}
-            placeholder="Add a comment..."
+            placeholder="Add a public comment..."
             value={newCommentText}
             onChange={(e) => setNewCommentText(e.target.value)}
             disabled={isSubmitting}
           />
           {submitError && (
-            <p className="mt-2 text-red-500 text-sm">{submitError}</p>
+            <p className="mt-2 text-red-400 text-sm">{submitError}</p>
           )}
-          <button
-            type="submit"
-            className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isSubmitting || !newCommentText.trim()}>
-            {isSubmitting ? 'Submitting...' : 'Submit Comment'}
-          </button>
+          <div className="flex items-center justify-between mt-3">
+            <button
+              onClick={() => refetchComments()}
+              type="button" // Important: type="button" to prevent form submission
+              className="px-4 py-2 text-sm bg-secondary text-foreground rounded-lg hover:bg-primary border border-secondary hover:border-accent/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={isLoading}>
+              {isLoading && comments.length > 0
+                ? 'Refreshing...'
+                : 'Refresh Comments'}
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-accent text-background font-semibold rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={isSubmitting || !newCommentText.trim() || !isConnected}>
+              {isSubmitting ? 'Submitting...' : 'Comment'}
+            </button>
+          </div>
         </form>
       ) : (
-        <p className="text-gray-500 dark:text-gray-400 bg-gray-800 p-4 rounded-md">
-          Please connect your wallet to comment.
-        </p>
-      )}
-
-      {/* Display errors */}
-      {error && (
-        <div className="p-4 mb-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          Error: {error}
+        <div className="text-gray-400 bg-primary border border-secondary p-4 rounded-lg mb-6">
+          <p>Please connect your wallet to leave a comment.</p>
         </div>
       )}
 
-      {/* Refresh button */}
-      <button
-        onClick={() => refetchComments()}
-        className="mb-4 px-3 py-1.5 text-sm bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
-        disabled={isLoading}>
-        {isLoading ? 'Refreshing...' : 'Refresh Comments'}
-      </button>
+      {/* Display general errors for fetching comments */}
+      {error && !isLoading && (
+        <div className="p-3 mb-4 bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg text-sm">
+          Error loading comments: {error}
+        </div>
+      )}
 
       {/* Comments list */}
       {isLoading && comments.length === 0 && (
-        <p className="text-gray-400">Loading comments...</p>
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent mx-auto mb-2"></div>
+          <p className="text-gray-400">Loading comments...</p>
+        </div>
       )}
       {!isLoading && comments.length === 0 && !error && (
-        <p className="text-gray-400">
-          No comments yet. Be the first to comment!
-        </p>
+        <div className="text-center py-4 text-gray-500 bg-primary border border-secondary p-4 rounded-lg">
+          No comments yet. Be the first to share your thoughts!
+        </div>
       )}
 
       <div className="space-y-4">
         {comments.map((comment) => (
           <div
-            key={comment.id || comment.timestamp}
-            className="p-4 border border-gray-700 rounded-lg bg-gray-800">
-            <div className="flex items-center mb-1">
+            key={comment.id || comment.timestamp} // Use a stable key
+            className="p-4 border border-secondary rounded-lg bg-primary shadow-md">
+            <div className="flex items-center mb-2">
               <p
-                className="font-semibold text-sm text-blue-400 truncate"
+                className="font-semibold text-sm text-accent truncate mr-2"
                 title={comment.author}>
                 {comment.author.slice(0, 6)}...{comment.author.slice(-4)}
               </p>
-              <span className="text-xs text-gray-400 ml-2">
-                {formatDistanceToNow(new Date(comment.timestamp), {
+              <span className="text-xs text-gray-500">
+                {formatDistanceToNow(new Date(comment.timestamp * 1000), {
+                  // Assuming timestamp is in seconds
                   addSuffix: true,
                 })}
               </span>
             </div>
-            <p className="text-gray-200 whitespace-pre-wrap">{comment.text}</p>
+            <p className="text-gray-300 whitespace-pre-wrap text-sm">
+              {comment.text}
+            </p>
             {comment.id && (
               <a
-                href={`https://gateway.pinata.cloud/ipfs/${comment.id}`}
+                href={`https://${process.env.NEXT_PUBLIC_PINATA_GW}/ipfs/${comment.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-blue-500 hover:underline mt-1 inline-block">
+                className="text-xs text-accent/80 hover:text-accent hover:underline mt-2 inline-block transition-colors">
                 View on IPFS
               </a>
             )}

@@ -157,7 +157,6 @@ const Navbar: React.FC = () => {
 
     setLocalError(null)
     setHasAttemptedUpload(true)
-    setIsModalOpen(false)
 
     try {
       let videoFile = selectedFile
@@ -190,6 +189,7 @@ const Navbar: React.FC = () => {
       )
 
       setHasAttemptedUpload(false)
+      setIsModalOpen(false)
     } catch (error) {
       console.error('上传失败:', error)
       setHasAttemptedUpload(false)
@@ -221,255 +221,247 @@ const Navbar: React.FC = () => {
   }, [ipfsHash, error])
 
   return (
-    <nav className="bg-gray-800 text-white p-4 flex flex-col">
-      <div className="flex items-center justify-between">
-        {/* Detube 链接到主页 */}
-        <Link href="/" className="text-xl font-bold">
-          Detube
+    <nav className="bg-primary shadow-md sticky top-0 z-50">
+      <div className="container mx-auto px-6 py-3 flex justify-between items-center">
+        <Link
+          href="/"
+          className="text-2xl font-bold text-accent hover:text-accent-hover">
+          DeTube
         </Link>
-
-        <div className="ml-auto flex items-center space-x-4">
-          {/* 集成了进度条的上传按钮 */}
-          {isEncrypting || uploading ? (
-            <ProgressButton
-              progress={isEncrypting ? 50 : uploadProgress} // 加密阶段固定50%进度
-              stage={isEncrypting ? 'encrypting' : uploadStage}
-              label={isEncrypting ? '视频加密中...' : '上传中...'}
-              disabled={true}
-              onClick={() => {}}
-            />
-          ) : (
+        <div className="flex items-center space-x-4">
+          {isConnected && !uploading && !isEncrypting && (
             <button
-              onClick={() => setIsModalOpen(true)}
-              disabled={!isConnected || !address}
-              className={`${
-                isConnected && address
-                  ? showUploadSuccess
-                    ? 'bg-green-500 hover:bg-green-600'
-                    : 'bg-blue-500 hover:bg-blue-700'
-                  : 'bg-gray-500 cursor-not-allowed'
-              } text-white font-medium py-2 px-4 w-40 h-10 rounded-2xl transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg`}>
-              {showUploadSuccess
-                ? '上传成功'
-                : !address
-                ? '请先连接钱包'
-                : '上传视频'}
+              onClick={() => {
+                setIsModalOpen(true)
+                setLocalError(null)
+                setHasAttemptedUpload(false)
+                setShowUploadSuccess(false)
+              }}
+              className="bg-accent hover:bg-accent-hover text-background font-semibold py-2 px-4 rounded-md transition-colors duration-300 shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-hover focus:ring-opacity-50">
+              Upload Video
             </button>
           )}
-
-          {/* 连接钱包按钮 */}
+          {isConnected && (uploading || isEncrypting) && (
+            <div className="py-2 px-4 rounded-md bg-secondary border border-accent/30 text-sm">
+              <p className="text-center font-semibold text-accent">
+                {isEncrypting
+                  ? '视频加密中...'
+                  : uploadStage === 'cover'
+                  ? `封面上传中 (${Math.round(uploadProgress)}%)...`
+                  : uploadStage === 'video'
+                  ? `视频上传中 (${Math.round(uploadProgress)}%)...`
+                  : uploadStage === 'metadata'
+                  ? '元数据处理中...'
+                  : '处理中...'}
+              </p>
+              <div className="w-full bg-primary rounded-full h-1.5 mt-1 border border-secondary/50">
+                <div
+                  className="bg-accent h-1 rounded-full transition-all duration-300 ease-out"
+                  style={{
+                    width: `${isEncrypting ? 50 : uploadProgress}%`,
+                  }}></div>
+              </div>
+            </div>
+          )}
           <ConnectButton />
         </div>
       </div>
 
-      {/* 显示错误信息 */}
-      {hasAttemptedUpload && (error || localError) && (
-        <div className="mt-2 text-sm text-black bg-red-50 p-2 rounded border border-red-200">
-          <p>{localError || error || '上传失败，请重试'}</p>
-        </div>
-      )}
-
-      {/* 模态框：文件选择和上传 */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-96 max-w-sm">
-            {/* 标题输入框 */}
-            <div className="mb-4 relative">
-              <div className="flex items-center mb-1">
-                <label className="text-white font-medium">视频标题</label>
-                <div className="relative ml-2 group">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-blue-400 cursor-help"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 z-10">
-                    <div className="bg-gray-900 text-white text-xs rounded p-2 shadow-lg">
-                      <div className="relative">
-                        <div className="absolute -bottom-1 left-0 w-3 h-3 bg-gray-900 transform rotate-45"></div>
-                        <p>
-                          标题应简洁明了地描述视频内容，好的标题能吸引更多观众点击观看。建议控制在5-30个字符之间。
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="输入视频标题"
-                className={`w-full text-white bg-gray-700 border ${
-                  hasAttemptedUpload && !title
-                    ? 'border-red-500'
-                    : 'border-gray-600'
-                } rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              />
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-primary p-8 rounded-xl shadow-2xl w-full max-w-lg space-y-4 border border-secondary relative">
+            <button
+              onClick={() => {
+                if (uploading || isEncrypting) {
+                  console.log('Upload in progress, cannot close modal yet.')
+                  return
+                }
+                setIsModalOpen(false)
+                if (!showUploadSuccess) {
+                  setLocalError(null)
+                  setHasAttemptedUpload(false)
+                }
+              }}
+              className="absolute top-4 right-4 text-foreground hover:text-accent transition-colors">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            <h2 className="text-2xl font-semibold text-foreground mb-6 text-center">
+              Upload New Video
+            </h2>
 
-            {/* 封面图片输入框 */}
-            <div className="mb-4 relative">
-              <label className="text-white font-medium">上传封面图片：</label>
+            {/* Combined Error Display Area */}
+            {(localError || error) && (
+              <div className="bg-red-500/20 border border-red-700 text-red-300 p-3 rounded-md text-sm mb-4">
+                <p>{localError}</p>
+                {localError && error && (
+                  <hr className="my-2 border-red-700/50" />
+                )}{' '}
+                {/* Separator if both errors exist */}
+                <p>{error}</p> {/* This is the error from usePinata hook */}
+              </div>
+            )}
+
+            {/* Success Message - moved up for visibility before form potentially resets */}
+            {showUploadSuccess && ipfsHash && (
+              <div className="mb-4 p-3 bg-green-500/20 border border-green-700 text-green-300 rounded-md text-sm text-center">
+                <p className="font-semibold">Successfully uploaded!</p>
+                <p className="mt-1">
+                  IPFS Hash:
+                  <a
+                    href={`https://${process.env.NEXT_PUBLIC_PINATA_GW}/ipfs/${ipfsHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-normal hover:underline ml-1 break-all">
+                    {ipfsHash}
+                  </a>
+                </p>
+              </div>
+            )}
+
+            {/* Conditional rendering to hide form if success message is shown and we want a clean state */}
+            {/* Or, allow form to persist for "Upload another" type flow. For now, form persists. */}
+
+            <input
+              type="text"
+              placeholder="Title"
+              onChange={(e) => setTitle(e.target.value)}
+              className={`w-full p-3 rounded-md bg-secondary text-foreground placeholder-gray-500 focus:ring-2 focus:ring-accent focus:border-transparent border ${
+                hasAttemptedUpload && !title
+                  ? 'border-red-500'
+                  : 'border-secondary'
+              }`}
+            />
+            <textarea
+              placeholder="Description"
+              onChange={(e) => setDescription(e.target.value)}
+              className={`w-full p-3 rounded-md bg-secondary text-foreground placeholder-gray-500 focus:ring-2 focus:ring-accent focus:border-transparent border ${
+                hasAttemptedUpload && !description
+                  ? 'border-red-500'
+                  : 'border-secondary'
+              }`}
+              rows={3}></textarea>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-400">
+                Cover Image:
+              </label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleCoverImageChange}
-                className={`mb-4 w-full text-white bg-gray-700 border ${
+                className={`w-full text-sm text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-background hover:file:bg-accent-hover cursor-pointer ${
                   hasAttemptedUpload && !coverImage
-                    ? 'border-red-500'
-                    : 'border-gray-600'
-                } rounded-md p-2`}
+                    ? 'ring-2 ring-red-500 rounded-md'
+                    : ''
+                }`}
               />
             </div>
 
-            {/* 视频文件输入框 */}
-            <div className="mb-4 relative">
-              <label className="text-white font-medium mb-2">上传视频：</label>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-400">
+                Video File:
+              </label>
               <input
                 type="file"
                 accept="video/*"
                 onChange={handleFileChange}
-                className={`mb-4 w-full text-white bg-gray-700 border ${
+                className={`w-full text-sm text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-background hover:file:bg-accent-hover cursor-pointer ${
                   hasAttemptedUpload && !selectedFile
-                    ? 'border-red-500'
-                    : 'border-gray-600'
-                } rounded-md p-2`}
+                    ? 'ring-2 ring-red-500 rounded-md'
+                    : ''
+                }`}
               />
             </div>
 
-            {/* 描述输入框 */}
-            <div className="mb-4 relative">
-              <div className="flex items-center mb-1">
-                <label className="text-white font-medium">视频描述</label>
-                <div className="relative ml-2 group">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-blue-400 cursor-help"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 z-10">
-                    <div className="bg-gray-900 text-white text-xs rounded p-2 shadow-lg">
-                      <div className="relative">
-                        <div className="absolute -bottom-1 left-0 w-3 h-3 bg-gray-900 transform rotate-45"></div>
-                        <p>
-                          添加详细的视频描述有助于观众了解视频内容，也有利于视频在平台内被更好地推荐。可以包含关键词、主要内容要点等信息。
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="描述视频内容..."
-                className={`w-full text-white bg-gray-700 border ${
-                  hasAttemptedUpload && !description
-                    ? 'border-red-500'
-                    : 'border-gray-600'
-                } rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}></textarea>
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="isPublic"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                className="h-4 w-4 text-accent bg-secondary border-gray-500 rounded focus:ring-accent cursor-pointer"
+              />
+              <label
+                htmlFor="isPublic"
+                className="text-sm text-gray-400 cursor-pointer select-none">
+                Public Video (Uncheck for Private/Encrypted)
+              </label>
             </div>
 
-            {/* 访问权限切换开关 */}
-            <div className="mb-4 relative">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <label className="text-white font-medium mr-2">
-                    公开视频
-                  </label>
-                  <div className="relative group">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-blue-400 cursor-help"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 z-10">
-                      <div className="bg-gray-900 text-white text-xs rounded p-2 shadow-lg">
-                        <div className="relative">
-                          <div className="absolute -bottom-1 left-0 w-3 h-3 bg-gray-900 transform rotate-45"></div>
-                          <p>
-                            公开视频可以被所有用户访问。非公开视频将使用加密技术保护，只有您授权的用户才能观看。
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            {/* Upload Progress and Stage Information */}
+            {(uploading || isEncrypting) && (
+              <div className="my-4 p-3 bg-secondary border border-secondary/50 rounded-md">
+                <p className="text-sm text-center font-semibold text-accent mb-2">
+                  {isEncrypting
+                    ? 'Encrypting video, please hold on...'
+                    : uploadStage === 'cover'
+                    ? `Uploading cover image (${Math.round(
+                        uploadProgress
+                      )}%)...`
+                    : uploadStage === 'video'
+                    ? `Uploading video file (${Math.round(uploadProgress)}%)...`
+                    : uploadStage === 'metadata'
+                    ? 'Finalizing and uploading metadata to IPFS...'
+                    : 'Processing...'}
+                </p>
+                <div className="w-full bg-primary rounded-full h-2.5 border border-secondary">
+                  <div
+                    className="bg-accent h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{
+                      width: `${isEncrypting ? 50 : uploadProgress}%`,
+                    }}></div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsPublic(!isPublic)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    isPublic ? 'bg-green-500' : 'bg-gray-500'
-                  }`}>
-                  <span className="sr-only">切换视频访问权限</span>
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      isPublic ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                {isPublic
-                  ? '所有人都可以观看此视频'
-                  : '仅授权用户可以观看此视频'}
-              </p>
-            </div>
+            )}
 
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="bg-gray-500 text-white font-medium py-2 px-4 rounded-md hover:bg-gray-600 transition-all duration-200 shadow-md hover:shadow-lg">
-                取消
-              </button>
-              <button
-                onClick={handleUpload}
-                disabled={
-                  uploading ||
-                  isEncrypting ||
-                  !selectedFile ||
-                  !title ||
-                  !coverImage ||
-                  !description
-                }
-                className={`${
-                  selectedFile &&
-                  title &&
-                  coverImage &&
-                  description &&
-                  !uploading &&
-                  !isEncrypting
-                    ? 'bg-blue-500 hover:bg-blue-700'
-                    : 'bg-gray-500 cursor-not-allowed'
-                } text-white font-medium py-2 px-4 rounded-md transition-all duration-200 shadow-md hover:shadow-lg`}>
-                确定
-              </button>
-            </div>
+            {/* Conditionally render ProgressButton OR standard Upload button */}
+            {/* The ProgressButton seems to be more of a visual flair than a functional button when `disabled` is true. */}
+            {/* Let's use a standard disabled button text during upload, and the detailed progress above. */}
+            <button
+              onClick={handleUpload}
+              disabled={
+                uploading || isEncrypting || !isConnected || showUploadSuccess
+              }
+              className="w-full bg-accent hover:bg-accent-hover text-background font-bold py-3 px-4 rounded-md transition-colors duration-300 shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-hover focus:ring-opacity-50 disabled:opacity-60 disabled:cursor-not-allowed">
+              {isEncrypting
+                ? 'Encrypting...'
+                : uploading
+                ? uploadStage === 'cover'
+                  ? 'Uploading Cover...'
+                  : uploadStage === 'video'
+                  ? 'Uploading Video...'
+                  : 'Processing...'
+                : 'Upload'}
+            </button>
+
+            {/* Removed the explicit ProgressButton rendering here to avoid redundancy if the main button handles stages */}
+            {/* Original logic for ProgressButton (can be re-added if preferred over text changes on main button) */}
+            {/* {uploading || isEncrypting ? (
+              <ProgressButton
+                progress={isEncrypting ? 50 : uploadProgress} 
+                stage={isEncrypting ? 'encrypting' : uploadStage}
+                label={isEncrypting ? 'Encrypting...' : 'Uploading...'}
+                disabled={true}
+                onClick={() => {}}
+              />
+            ) : (
+              <button ...> Upload </button>
+            )} */}
+
+            {/* The success message was moved up, so it's not needed here again */}
+            {/* {showUploadSuccess && ipfsHash && ( ... )} */}
           </div>
         </div>
       )}

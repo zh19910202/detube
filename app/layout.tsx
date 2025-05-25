@@ -6,7 +6,7 @@ import Navbar from './components/Navbar'
 import React, { useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
+import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import { config } from './lib/wagmi'
 
 const queryClient = new QueryClient()
@@ -61,6 +61,54 @@ export default function RootLayout({
     )
   }
 
+  const accentColor = '#00FFFF' // Tailwind 'accent'
+  const accentColorForeground = '#0D0D1A' // Tailwind 'background' (for text on accent)
+  const primaryBackgroundColor = '#1A1A2E' // Tailwind 'primary'
+  const secondaryBackgroundColor = '#2A2A4D' // Tailwind 'secondary'
+  const foregroundColor = '#E0E0E0' // Tailwind 'foreground'
+  const secondaryForegroundColor = '#A0A0A0' // Slightly dimmer foreground
+
+  const customRainbowTheme = darkTheme({
+    accentColor: accentColor,
+    accentColorForeground: accentColorForeground,
+    borderRadius: 'medium',
+    fontStack: 'system',
+    overlayBlur: 'small',
+    colors: {
+      // --- Modal & Dropdown backgrounds ---
+      modalBackground: primaryBackgroundColor,
+      modalBorder: secondaryBackgroundColor,
+      menuItemBackground: secondaryBackgroundColor, // Hover/focus on dropdown items
+
+      // --- Connect Button (Unconnected State) ---
+      connectButtonBackground: primaryBackgroundColor, // Default button background
+      connectButtonText: foregroundColor,
+      connectButtonBackgroundError: primaryBackgroundColor, // for error state button
+
+      // --- Connected State Button / Address / Balance / Network Button ---
+      // Make these sections use accentColor background and accentColorForeground text
+      connectedButtonBackground: accentColor,
+      connectButtonInnerBackground: accentColor,
+      connectButtonText: accentColorForeground, // Text ON the connected button sections
+      connectButtonTextError: foregroundColor,
+
+      // --- Profile (Dropdown after clicking address) ---
+      profileActionBackground: secondaryBackgroundColor, // e.g., "Copy Address", "Disconnect" hover
+      profileActionText: foregroundColor,
+
+      // --- Other text colors ---
+      modalText: foregroundColor,
+      modalTextSecondary: secondaryForegroundColor,
+      actionButtonText: accentColorForeground, // Text on buttons that use `accentColor` as background
+
+      // --- Potentially useful for further unification ---
+      // selectedOptionBackgroundColor: accentColor, // Background for selected network in dropdown
+      // selectedOptionTextColor: accentColorForeground,
+      // generalBorder: secondaryBackgroundColor, // General borders if not specified elsewhere
+      // modalBackdrop: 'rgba(0,0,0,0.7)', // Customize backdrop if needed
+    },
+  })
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -78,7 +126,7 @@ export default function RootLayout({
         suppressHydrationWarning>
         <WagmiProvider config={config}>
           <QueryClientProvider client={queryClient}>
-            <RainbowKitProvider>
+            <RainbowKitProvider theme={customRainbowTheme}>
               <Navbar />
               <main>{children}</main>
             </RainbowKitProvider>

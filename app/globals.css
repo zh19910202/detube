@@ -2,20 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Define root variables, but we'll primarily use Tailwind's direct color names from the config */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Default light mode (optional, as we are focusing on dark first) */
+  --background-light: #ffffff;
+  --foreground-light: #171717;
+
+  /* Dark mode variables (can be overridden by Tailwind config directly) */
+  --background-dark: #0d0d1a; /* Matches Tailwind 'background' */
+  --foreground-dark: #e0e0e0; /* Matches Tailwind 'foreground' */
 }
 
+/* Remove prefers-color-scheme for now to force dark mode, 
+   or adjust later if light/dark toggle is needed */
+/*
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--background-dark);
+    --foreground: var(--foreground-dark);
   }
 }
+*/
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-background text-foreground;
+  min-height: 100vh;
+  /* font-family is handled by inter.className in layout.tsx */
 }
+
+/* General link styling */
+a {
+  @apply text-accent hover:text-accent-hover transition-colors;
+}
+
+/* Styling for headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-semibold text-foreground;
+  /* Headings will inherit font-family from body (Inter) */
+}
+
+/* Optional: Global input/button styling can be added if desired */
+/* 
+input, textarea {
+  @apply bg-primary border border-secondary rounded-md p-2 text-foreground focus:ring-accent focus:border-accent;
+}
+button {
+  @apply bg-accent text-background font-semibold py-2 px-4 rounded-md hover:bg-accent-hover transition-colors;
+}
+*/

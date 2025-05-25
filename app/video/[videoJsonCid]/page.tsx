@@ -397,7 +397,7 @@ const VideoPage = () => {
   const renderTransactionStatus = useMemo(() => {
     if (!isConnected) {
       return (
-        <div className="mt-3 text-base text-black bg-yellow-50 p-2 rounded border border-yellow-200">
+        <div className="mt-3 text-sm text-yellow-300 bg-yellow-500/20 p-3 rounded-md border border-yellow-500/30">
           请连接钱包以进行打赏。
         </div>
       )
@@ -405,7 +405,7 @@ const VideoPage = () => {
 
     if (tipError) {
       return (
-        <div className="mt-3 text-base text-black bg-red-50 p-3 rounded border border-red-200">
+        <div className="mt-3 text-sm text-red-300 bg-red-500/20 p-3 rounded-md border border-red-500/30">
           {tipError}
         </div>
       )
@@ -414,19 +414,19 @@ const VideoPage = () => {
     switch (transactionStatus) {
       case 'error':
         return (
-          <div className="mt-4 text-base text-black bg-red-50 p-3 rounded border border-red-200">
+          <div className="mt-4 text-sm text-red-300 bg-red-500/20 p-3 rounded-md border border-red-500/30">
             交易失败，请重试
           </div>
         )
       case 'confirming':
         return (
-          <div className="mt-4 text-base text-black bg-green-50 p-3 rounded border border-green-200">
+          <div className="mt-4 text-sm text-green-300 bg-green-500/20 p-3 rounded-md border border-green-500/30">
             交易确认中...
           </div>
         )
       case 'success':
         return (
-          <div className="mt-4 text-base text-black bg-green-50 p-3 rounded border border-green-200">
+          <div className="mt-4 text-sm text-green-300 bg-green-500/20 p-3 rounded-md border border-green-500/30">
             交易成功！
           </div>
         )
@@ -448,22 +448,27 @@ const VideoPage = () => {
 
   if (isMetadataLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-screen bg-background text-foreground">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent"></div>
+        <p className="ml-3">Loading video data...</p>
       </div>
     )
   }
 
   if (metadataError || !videoMetadata) {
     return (
-      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl text-black font-bold mb-2">加载错误</h2>
-          <p className="text-black">视频加载失败，请重试</p>
+      <div className="min-h-screen bg-background text-foreground flex justify-center items-center p-4">
+        <div className="bg-primary p-6 rounded-lg shadow-xl border border-secondary">
+          <h2 className="text-xl text-foreground font-bold mb-3">
+            Loading Error
+          </h2>
+          <p className="text-gray-400 mb-4">
+            {metadataError || 'Video failed to load. Please try again.'}
+          </p>
           <button
             onClick={() => window.history.back()}
-            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg">
-            返回上一页
+            className="mt-4 bg-accent text-background px-4 py-2 rounded-lg hover:bg-accent-hover transition-colors">
+            Go Back
           </button>
         </div>
       </div>
@@ -513,19 +518,21 @@ const VideoPage = () => {
     }
   }
   return (
-    <div className="min-h-screen bg-black text-white">
-      <main className="container mx-auto p-5">
-        <div className="flex flex-col lg:flex-row lg:space-x-6">
+    <div className="min-h-screen bg-background text-foreground">
+      <main className="container mx-auto p-4 md:p-6">
+        <div className="flex flex-col lg:flex-row lg:space-x-8">
           {/* 视频播放器 - 占据更多空间 */}
-          <div className="w-full lg:w-[70%]">
-            <div className="bg-black rounded-lg overflow-hidden">
+          <div className="w-full lg:w-[calc(70%-1rem)]">
+            {' '}
+            {/* Adjusted width for spacing */}
+            <div className="bg-primary rounded-lg overflow-hidden shadow-xl border border-secondary aspect-video">
               {videoMetadata.isPublic ? (
                 <video
                   src={videoUrl}
                   width="100%"
                   controls
                   autoPlay
-                  className="w-full aspect-video object-contain"
+                  className="w-full h-full object-contain"
                 />
               ) : decryptedVideoUrl ? (
                 <video
@@ -533,16 +540,16 @@ const VideoPage = () => {
                   width="100%"
                   controls
                   autoPlay
-                  className="w-full aspect-video object-contain"
+                  className="w-full h-full object-contain"
                 />
               ) : (
-                <div className="w-full aspect-video flex items-center justify-center bg-gray-900">
+                <div className="w-full h-full flex items-center justify-center bg-primary">
                   <div className="text-center p-6">
-                    <h3 className="text-xl font-medium text-white mb-4">
-                      此视频为加密内容
+                    <h3 className="text-xl font-medium text-foreground mb-4">
+                      This video is private
                     </h3>
                     {decryptError && (
-                      <p className="text-red-500 mb-4">{decryptError}</p>
+                      <p className="text-red-400 mb-4">{decryptError}</p>
                     )}
                     <button
                       onClick={async () => {
@@ -590,107 +597,107 @@ const VideoPage = () => {
                         }
                       }}
                       disabled={isDecrypting || !isConnected}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
-                      {isDecrypting ? '解密中...' : '解密并播放视频'}
+                      className={`px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed
+                        ${
+                          isDecrypting
+                            ? 'bg-accent/70 text-background cursor-wait'
+                            : 'bg-accent text-background hover:bg-accent-hover'
+                        }`}>
+                      {isDecrypting ? 'Decrypting...' : 'Decrypt & Play Video'}
                     </button>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* 视频标题区域 - YouTube风格 */}
-            <div className="mt-3">
-              <h1 className="text-xl md:text-2xl font-bold text-white leading-tight">
-                {videoMetadata.title}
-              </h1>
-
-              <div className="flex flex-wrap items-center justify-between mt-3 pb-2 border-b border-gray-800">
-                <div className="flex items-center space-x-2 text-gray-400 text-sm mb-2 md:mb-0">
-                  <span className="font-medium">4,637 次观看</span>
-                  <span>•</span>
-                  <span>
-                    {new Date(videoMetadata.timestamp).toLocaleDateString(
-                      'zh-CN'
-                    )}
+            {/* 视频标题区域 */}
+            <div className="mt-4 py-3">
+              <div className="flex items-center mb-1">
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+                  {videoMetadata.title}
+                </h1>
+                {videoMetadata.isPublic ? (
+                  <span className="ml-3 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-secondary/70 text-gray-300 border border-secondary">
+                    Public
                   </span>
-                  {videoMetadata.author && (
-                    <>
-                      <span className="hidden md:inline">•</span>
-                      <div className="hidden md:flex items-center space-x-2">
-                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full dark:bg-blue-900 dark:text-blue-300">
-                          #bitcoin
-                        </span>
-                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full dark:bg-blue-900 dark:text-blue-300">
-                          #ethereum
-                        </span>
-                      </div>
-                    </>
-                  )}
+                ) : (
+                  <span className="ml-3 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-accent text-background border border-accent/50">
+                    Private
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between mt-2 text-sm text-gray-400 border-b border-secondary pb-3 mb-3">
+                <div className="flex items-center space-x-2 mb-2 md:mb-0">
+                  {/* <span>4,637 Views</span> Placeholder for actual views */}
+                  {/* <span>•</span> */}
+                  <span>
+                    Uploaded:{' '}
+                    {new Date(videoMetadata.timestamp).toLocaleDateString()}
+                  </span>
+                  {/* Tags can be added here if available in metadata */}
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <button className="inline-flex items-center px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full transition-all">
+                  {/* Like, Share, Save buttons styling update */}
+                  <button className="inline-flex items-center px-3 py-1.5 bg-secondary text-foreground hover:bg-primary rounded-full transition-colors border border-secondary hover:border-accent/50">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mr-2"
+                      className="h-5 w-5 mr-1.5"
                       fill="none"
                       viewBox="0 0 24 24"
-                      stroke="currentColor">
+                      stroke="currentColor"
+                      strokeWidth={2}>
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
                         d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
                       />
                     </svg>
-                    <span>144</span>
+                    <span>Like</span> {/* Placeholder count */}
                   </button>
-
-                  <button className="inline-flex items-center px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full transition-all">
+                  <button className="inline-flex items-center px-3 py-1.5 bg-secondary text-foreground hover:bg-primary rounded-full transition-colors border border-secondary hover:border-accent/50">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mr-2"
+                      className="h-5 w-5 mr-1.5"
                       fill="none"
                       viewBox="0 0 24 24"
-                      stroke="currentColor">
+                      stroke="currentColor"
+                      strokeWidth={2}>
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
                         d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                       />
                     </svg>
-                    <span>分享</span>
+                    <span>Share</span>
                   </button>
-
-                  <button className="inline-flex items-center px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full transition-all">
+                  <button className="inline-flex items-center px-3 py-1.5 bg-secondary text-foreground hover:bg-primary rounded-full transition-colors border border-secondary hover:border-accent/50">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mr-2"
+                      className="h-5 w-5 mr-1.5"
                       fill="none"
                       viewBox="0 0 24 24"
-                      stroke="currentColor">
+                      stroke="currentColor"
+                      strokeWidth={2}>
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
                         d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
                       />
                     </svg>
-                    <span>收藏</span>
+                    <span>Save</span>
                   </button>
-
-                  <button className="inline-flex items-center justify-center h-9 w-9 bg-gray-800 hover:bg-gray-700 rounded-full transition-all">
+                  <button className="inline-flex items-center justify-center h-9 w-9 bg-secondary text-foreground hover:bg-primary rounded-full transition-colors border border-secondary hover:border-accent/50">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5"
                       fill="none"
                       viewBox="0 0 24 24"
-                      stroke="currentColor">
+                      stroke="currentColor"
+                      strokeWidth={2}>
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
                         d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"
                       />
                     </svg>
@@ -698,43 +705,41 @@ const VideoPage = () => {
                 </div>
               </div>
             </div>
-
             {/* 作者信息、订阅和打赏按钮 */}
-            <div className="flex flex-wrap items-start justify-between py-4 border-b border-gray-800">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-xl font-bold">
+            <div className="flex flex-col md:flex-row items-start justify-between py-4 border-b border-secondary">
+              <div className="flex items-center mb-3 md:mb-0">
+                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-accent to-purple-600 rounded-full flex items-center justify-center text-xl font-bold text-background">
                   {videoMetadata.author
                     ? videoMetadata.author.substring(0, 2).toUpperCase()
-                    : 'DE'}
+                    : 'NA'}
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-base md:text-lg font-medium text-white">
+                  <h3 className="text-lg font-medium text-foreground">
                     {videoMetadata.author
                       ? formatDisplayAddress(videoMetadata.author)
-                      : '未知作者'}
+                      : 'Unknown Creator'}
                   </h3>
-                  <p className="text-gray-400 text-xs md:text-sm mt-0.5">
-                    40.1K 订阅者
-                  </p>
+                  {/* <p className="text-gray-400 text-sm mt-0.5"> Placeholder for subscriber count</p> */}
                 </div>
               </div>
 
-              <div className="mt-3 md:mt-0 flex flex-wrap md:flex-nowrap items-center space-y-3 md:space-y-0 md:space-x-3 w-full md:w-auto">
-                <div className="relative">
+              <div className="mt-3 md:mt-0 flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
+                <div className="relative w-full sm:w-auto">
                   {/* 订阅按钮 */}
                   <button
                     onClick={handleSubscribe}
                     disabled={!isConnected || isSubscribing || isSubscribed}
-                    className={`w-full md:w-auto px-6 py-2 font-medium rounded-full transition-all ${
-                      isSubscribed
-                        ? 'bg-gray-600 text-white cursor-not-allowed'
-                        : isSubscribing
-                        ? 'bg-gray-600 text-white cursor-wait'
-                        : 'bg-red-600 hover:bg-red-700 text-white'
-                    }`}>
+                    className={`w-full sm:w-auto px-6 py-2.5 font-semibold rounded-lg transition-all text-sm
+                      ${
+                        isSubscribed
+                          ? 'bg-secondary text-gray-400 cursor-not-allowed border border-secondary'
+                          : isSubscribing
+                          ? 'bg-accent/70 text-background cursor-wait border border-accent/50'
+                          : 'bg-accent text-background hover:bg-accent-hover border border-accent'
+                      } disabled:opacity-60`}>
                     {isSubscribing ? (
                       <>
-                        <span className="inline-block mr-2">订阅中</span>
+                        <span className="inline-block mr-2">Subscribing</span>
                         <svg
                           className="inline-block animate-spin h-4 w-4"
                           xmlns="http://www.w3.org/2000/svg"
@@ -754,67 +759,78 @@ const VideoPage = () => {
                         </svg>
                       </>
                     ) : isSubscribed ? (
-                      '已订阅'
+                      'Subscribed'
                     ) : (
-                      '订阅'
+                      'Subscribe'
                     )}
                   </button>
 
                   {/* 订阅状态提示 */}
                   {subscribeError && (
-                    <div className="absolute -bottom-10 left-0 w-full text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                    <div className="absolute -bottom-12 left-0 w-full text-xs text-red-300 bg-red-500/20 p-2 rounded-md border border-red-500/30 mt-1">
                       {subscribeError}
                     </div>
                   )}
-
-                  {/* 订阅交易状态显示 */}
-                  {!isConnected && (
-                    <div className="absolute -bottom-10 left-0 w-full text-sm text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
-                      请连接钱包以订阅频道
-                    </div>
-                  )}
-
+                  {!isConnected &&
+                    !isSubscribed && ( // Show only if not connected and not yet trying to subscribe
+                      <div className="absolute -bottom-12 left-0 w-full text-xs text-yellow-300 bg-yellow-500/20 p-2 rounded-md border border-yellow-500/30 mt-1">
+                        Connect wallet to subscribe.
+                      </div>
+                    )}
                   {isConnected && subscriptionStatus === 'confirming' && (
-                    <div className="absolute -bottom-10 left-0 w-full text-sm text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
-                      订阅交易确认中...
+                    <div className="absolute -bottom-12 left-0 w-full text-xs text-accent bg-accent/20 p-2 rounded-md border border-accent/30 mt-1">
+                      Subscription confirming...
                     </div>
                   )}
-
-                  {showSubscribeConfirmation && (
-                    <div className="absolute -bottom-10 left-0 w-full text-sm text-green-700 bg-green-50 p-2 rounded border border-green-200">
-                      订阅成功！
-                    </div>
-                  )}
+                  {showSubscribeConfirmation &&
+                    subscriptionStatus === 'success' && (
+                      <div className="absolute -bottom-12 left-0 w-full text-xs text-green-300 bg-green-500/20 p-2 rounded-md border border-green-500/30 mt-1">
+                        Subscribed successfully!
+                      </div>
+                    )}
                 </div>
 
                 {/* 打赏作者控件 */}
-                <div className="flex items-center md:w-auto space-x-2 w-full">
-                  <div className="relative w-28 md:w-32">
+                <div className="flex items-center w-full sm:w-auto space-x-2">
+                  <div className="relative flex-grow sm:flex-grow-0 sm:w-28">
                     <input
                       type="number"
                       id="tipAmount"
                       value={displayAmount}
                       onChange={handleTipAmountChange}
                       placeholder="0.01"
-                      className="w-full px-3 py-2 bg-white border border-gray-300 text-black rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className="w-full px-3 py-2.5 bg-secondary border border-secondary text-foreground rounded-lg focus:ring-2 focus:ring-accent focus:border-accent text-sm placeholder-gray-500"
                     />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                      <span className="text-black text-xs">ETH</span>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <span className="text-gray-400 text-xs">ETH</span>
                     </div>
                   </div>
                   <button
                     onClick={handleSendTip}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center ${
-                      isConnected && transactionStatus !== 'pending'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                    } transition duration-200 shadow-md`}
-                    disabled={!isConnected || transactionStatus === 'pending'}
-                    title="打赏创作者">
-                    {transactionStatus === 'pending' ? (
+                    className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center transition-colors border
+                      ${
+                        isConnected &&
+                        transactionStatus !== 'pending' &&
+                        transactionStatus !== 'confirming'
+                          ? 'bg-accent text-background hover:bg-accent-hover border-accent'
+                          : 'bg-secondary text-gray-400 cursor-not-allowed border-secondary'
+                      } ${
+                      transactionStatus === 'pending' ||
+                      transactionStatus === 'confirming'
+                        ? 'bg-accent/70 text-background cursor-wait border-accent/50'
+                        : ''
+                    } disabled:opacity-60`}
+                    disabled={
+                      !isConnected ||
+                      transactionStatus === 'pending' ||
+                      transactionStatus === 'confirming'
+                    }
+                    title="Tip Creator">
+                    {transactionStatus === 'pending' ||
+                    transactionStatus === 'confirming' ? (
                       <>
                         <svg
-                          className="animate-spin h-4 w-4 text-white"
+                          className="animate-spin h-4 w-4 text-background"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24">
@@ -835,18 +851,18 @@ const VideoPage = () => {
                       <>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 mr-1"
+                          className="h-4 w-4 mr-1.5"
                           fill="none"
                           viewBox="0 0 24 24"
-                          stroke="currentColor">
+                          stroke="currentColor"
+                          strokeWidth={2}>
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            strokeWidth={2}
                             d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                           />
                         </svg>
-                        打赏
+                        Tip
                       </>
                     )}
                   </button>
@@ -855,113 +871,87 @@ const VideoPage = () => {
 
               {/* 交易状态消息 */}
               {renderTransactionStatus && (
-                <div className="w-full mt-3 text-sm">
+                <div className="w-full mt-3 md:text-right">
+                  {' '}
+                  {/* Aligned to right on medium screens */}
                   {renderTransactionStatus}
                 </div>
               )}
             </div>
-
             {/* 视频描述区域 */}
-            <div className="mt-4 bg-gray-900 rounded-xl p-4 text-gray-300">
-              <div className="flex items-start">
-                <div className="flex-1">
-                  <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                    {videoMetadata.description || '暂无描述信息'}
-                  </div>
-
-                  {/* 推广/链接区域 */}
-                  <div className="mt-4 pt-3 border-t border-gray-800">
-                    <a
-                      href="#"
-                      className="text-blue-400 hover:text-blue-300 text-sm flex items-center mt-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 mr-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M14.828 14.828a4 4 0 010-5.656l4-4a4 4 0 015.656 5.656l-1.1 1.1"
-                        />
-                      </svg>
-                      https://detube.com/join
-                    </a>
-                  </div>
-                </div>
+            <div className="mt-6 bg-primary border border-secondary rounded-xl p-4 md:p-5">
+              <h4 className="text-lg font-semibold text-foreground mb-2">
+                Description
+              </h4>
+              <div className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed prose prose-sm prose-invert max-w-none">
+                {videoMetadata.description || 'No description provided.'}
               </div>
-            </div>
 
-            {/* 替换旧的评论UI为新的Comments组件 */}
+              {/* 推广/链接区域 - Example */}
+              {/* <div className="mt-4 pt-4 border-t border-secondary">
+                <a href="#" className="text-accent hover:text-accent-hover text-sm flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 010-5.656l4-4a4 4 0 015.656 5.656l-1.1 1.1" />
+                  </svg>
+                  Promotional Link
+                </a>
+              </div> */}
+            </div>
+            {/* 评论组件 */}
             <div className="mt-8">
-              <Comments videoId={videoJsonCid as string} />
+              <Comments videoId={videoJsonCid as string} />{' '}
+              {/* Assuming Comments component will also be styled */}
             </div>
           </div>
 
           {/* 右侧推荐视频 */}
           <div className="w-full lg:w-[30%] mt-8 lg:mt-0">
-            <h3 className="text-lg font-medium mb-4 text-white">为您推荐</h3>
+            <h3 className="text-xl font-semibold mb-4 text-foreground">
+              Recommended
+            </h3>
             <div className="space-y-4">
-              {/* 推荐视频项 */}
-              {[1, 2, 3, 4, 5].map((_, index) => (
-                <div
-                  key={index}
-                  className="flex items-start group cursor-pointer">
-                  <div className="w-40 h-24 relative flex-shrink-0 bg-gray-800 rounded overflow-hidden">
-                    {index === 0 ? (
-                      <Image
-                        src={coverImageUrl}
-                        alt="视频封面"
-                        fill
-                        className="object-cover"
-                        onError={(e) => {
-                          ;(e.target as HTMLImageElement).src =
-                            'https://via.placeholder.com/300x200'
-                        }}
-                      />
-                    ) : (
+              {/* 推荐视频项 - Needs data source and styling */}
+              {[1, 2, 3, 4, 5].map(
+                (
+                  _,
+                  index // Placeholder loop
+                ) => (
+                  <div
+                    key={index}
+                    className="flex items-start group cursor-pointer p-2 rounded-lg hover:bg-secondary transition-colors">
+                    <div className="w-32 h-20 relative flex-shrink-0 bg-primary border border-secondary rounded-md overflow-hidden">
+                      {/* Placeholder for recommended video thumbnail */}
                       <div className="absolute inset-0 flex items-center justify-center">
                         <svg
-                          className="w-10 h-10 text-gray-400"
+                          className="w-8 h-8 text-gray-500"
                           viewBox="0 0 24 24"
                           fill="currentColor">
                           <path d="M8 5.14v14l11-7-11-7z" />
                         </svg>
                       </div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center group-hover:bg-black/40 transition-all">
-                      <svg
-                        className="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        viewBox="0 0 24 24"
-                        fill="currentColor">
-                        <path d="M8 5.14v14l11-7-11-7z" />
-                      </svg>
+                      {/* Example Image (replace with actual data) */}
+                      {/* {index === 0 && videoMetadata.coverImageCid && (
+                      <Image src={`${getPinataGateway()}/ipfs/${videoMetadata.coverImageCid}`} alt="Video thumbnail" fill className="object-cover" />
+                    )} */}
+                      <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                        0:00 {/* Placeholder duration */}
+                      </div>
                     </div>
-                    <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1">
-                      3:45
+                    <div className="ml-3 flex-1">
+                      <h4 className="font-semibold text-foreground text-sm line-clamp-2 group-hover:text-accent transition-colors">
+                        Recommended Video Title {index + 1}
+                      </h4>
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                        Creator Name
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Views • Upload Date
+                      </p>
                     </div>
                   </div>
-                  <div className="ml-3 flex-1">
-                    <h4 className="font-medium text-white text-sm line-clamp-2 group-hover:text-blue-400 transition-colors">
-                      推荐视频{index + 1}：加密货币市场最新动态分析
-                    </h4>
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">
-                      创作者频道
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      5.2万次观看 • 3天前
-                    </p>
-                  </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           </div>
         </div>
