@@ -13,6 +13,7 @@ import Image from 'next/image'
 import { handleVideoDecryption } from '../../lib/lit/handleVideoDecryption'
 import { ethers } from 'ethers'
 import { fromByteArray } from 'base64-js'
+import Comments from '@/app/components/Comments' // 导入评论组件
 
 // 添加防抖函数
 function debounce<T extends (...args: Parameters<T>) => void>(
@@ -90,8 +91,6 @@ const VideoPage = () => {
   const [decryptedVideoUrl, setDecryptedVideoUrl] = useState<string | null>(
     null
   )
-  const [comments, setComments] = useState<string[]>([])
-  const [newComment, setNewComment] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const [isMetadataLoading, setIsMetadataLoading] = useState(true)
   const [metadataError, setMetadataError] = useState<string | null>(null)
@@ -276,7 +275,7 @@ const VideoPage = () => {
         setVideoMetadata(metadata)
 
         // 模拟评论数据
-        setComments(['真不错的视频！', '学到了很多，感谢分享'])
+        // setComments(['真不错的视频！', '学到了很多，感谢分享'])
       } catch (err) {
         console.error('Error fetching video metadata:', err)
         setMetadataError('无法加载视频信息，请检查网络连接或稍后重试')
@@ -339,13 +338,6 @@ const VideoPage = () => {
     debounce((val: string) => {
       setTipAmount(val)
     }, 300)(value)
-  }
-
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      setComments((prev) => [...prev, newComment])
-      setNewComment('')
-    }
   }
 
   // 使用useCallback优化打赏函数，减少重渲染
@@ -804,10 +796,10 @@ const VideoPage = () => {
                       value={displayAmount}
                       onChange={handleTipAmountChange}
                       placeholder="0.01"
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 text-white rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 text-black rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                      <span className="text-gray-400 text-xs">ETH</span>
+                      <span className="text-black text-xs">ETH</span>
                     </div>
                   </div>
                   <button
@@ -908,116 +900,9 @@ const VideoPage = () => {
               </div>
             </div>
 
-            {/* 评论区 - YouTube风格 */}
+            {/* 替换旧的评论UI为新的Comments组件 */}
             <div className="mt-8">
-              <div className="flex items-center mb-4">
-                <h3 className="text-lg font-bold text-white">
-                  {comments.length} 条评论
-                </h3>
-              </div>
-
-              <div className="mb-6 flex">
-                <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-lg font-bold">
-                  {userAddress
-                    ? userAddress.substring(0, 2).toUpperCase()
-                    : '游'}
-                </div>
-                <div className="ml-3 flex-1">
-                  <input
-                    type="text"
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="添加评论..."
-                    className="w-full px-4 py-3 bg-gray-800 border-b border-gray-700 text-white focus:outline-none focus:border-blue-500"
-                  />
-                  <div className="flex justify-end mt-2">
-                    <button
-                      onClick={handleAddComment}
-                      disabled={!newComment.trim()}
-                      className={`px-4 py-2 rounded-full ${
-                        newComment.trim()
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                      } transition-all text-sm font-medium`}>
-                      评论
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {comments.length > 0 ? (
-                <div className="space-y-6">
-                  {comments.map((comment, index) => (
-                    <div key={index} className="flex">
-                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-lg font-bold">
-                        用
-                      </div>
-                      <div className="ml-3 flex-1">
-                        <div className="flex items-center">
-                          <h4 className="font-medium text-white">匿名用户</h4>
-                          <span className="ml-2 text-xs text-gray-400">
-                            {new Date().toLocaleDateString('zh-CN')}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-gray-300">{comment}</p>
-                        <div className="mt-2 flex items-center text-gray-400 text-sm">
-                          <button className="flex items-center mr-4 hover:text-white">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4 mr-1"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
-                              />
-                            </svg>
-                            赞同
-                          </button>
-                          <button className="flex items-center hover:text-white">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4 mr-1"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                              />
-                            </svg>
-                            回复
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 bg-gray-900 rounded-lg">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-12 w-12 text-gray-600 mx-auto mb-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  <p className="text-gray-400">
-                    暂无评论，成为第一个评论的用户吧！
-                  </p>
-                </div>
-              )}
+              <Comments videoId={videoJsonCid as string} />
             </div>
           </div>
 
