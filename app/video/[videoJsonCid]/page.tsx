@@ -15,7 +15,7 @@ import { fromByteArray } from 'base64-js'
 import Comments from '@/app/components/Comments' // 导入评论组件
 import { formatDisplayAddress, debounce } from '../../lib/utils' // debounce was already moved in a previous step, but the read file content was stale
 import { usePinata } from '../../hooks/usePinata'
-import VideoCard from '@/app/components/VideoCard'
+import RecommendedVideoCard from '@/app/components/RecommendedVideoCard'
 
 // 确保地址格式正确的辅助函数
 const formatEthAddress = (address: string): `0x${string}` | null => {
@@ -582,7 +582,13 @@ const VideoPage = () => {
                       This video is private
                     </h3>
                     {decryptError && (
-                      <p className="text-red-400 mb-4">{decryptError}</p>
+                      <div className={
+                        decryptError === 'Please connect your wallet and ensure video information is complete.'
+                          ? "mb-4 p-3 rounded-md bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 text-sm"
+                          : "mb-4 text-red-400" // Fallback for other decrypt errors
+                      }>
+                        {decryptError}
+                      </div>
                     )}
                     <button
                       onClick={async () => {
@@ -837,7 +843,7 @@ const VideoPage = () => {
                   )}
                   {!isConnected &&
                     !isSubscribed && ( // Show only if not connected and not yet trying to subscribe
-                      <div className="absolute -bottom-12 left-0 w-full text-xs text-yellow-300 bg-yellow-500/20 p-2 rounded-md border border-yellow-500/30 mt-1">
+                      <div className="absolute -bottom-12 left-0 w-full text-sm text-yellow-300 bg-yellow-500/20 p-3 rounded-md border border-yellow-500/30 mt-1">
                         Connect wallet to subscribe.
                       </div>
                     )}
@@ -983,7 +989,7 @@ const VideoPage = () => {
                 </p>
               ) : (
                 recommendedVideos.map((video) => (
-                  <VideoCard key={video.cid} video={video} />
+                  <RecommendedVideoCard key={video.cid} video={video} />
                 ))
               )}
             </div>
