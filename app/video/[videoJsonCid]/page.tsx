@@ -13,6 +13,7 @@ import { handleVideoDecryption } from '../../lib/lit/handleVideoDecryption'
 import { ethers } from 'ethers'
 import { fromByteArray } from 'base64-js'
 import Comments from '@/app/components/Comments' // 导入评论组件
+import { formatDisplayAddress } from '../../lib/utils'
 
 // 添加防抖函数
 function debounce<T extends (...args: Parameters<T>) => void>(
@@ -40,13 +41,6 @@ const formatEthAddress = (address: string): `0x${string}` | null => {
   }
 
   return null
-}
-
-// 添加格式化钱包地址的辅助函数
-const formatDisplayAddress = (address: string): string => {
-  if (!address) return '未知地址'
-  if (address.length <= 10) return address
-  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
 }
 
 // 订阅合约ABI
@@ -237,14 +231,16 @@ const VideoPage = () => {
     const fetchMetadata = async () => {
       if (!videoJsonCid) return
 
+      console.log('Received videoJsonCid:', videoJsonCid)
       setIsMetadataLoading(true)
       setMetadataError(null)
 
+      const responseUrl = `${getPinataGateway()}/ipfs/${videoJsonCid}`
+      console.log('Attempting to fetch video metadata from URL:', responseUrl)
+
       try {
         // 从 IPFS 获取元数据 JSON
-        const response = await fetch(
-          `${getPinataGateway()}/ipfs/${videoJsonCid}`
-        )
+        const response = await fetch(responseUrl)
 
         if (!response.ok) {
           throw new Error(`Failed to fetch metadata: ${response.statusText}`)
@@ -266,14 +262,33 @@ const VideoPage = () => {
           dataToEncryptHash: data.dataToEncryptHash || '', // 获取原始视频数据的哈希值
         }
 
-        // console.log('处理后的元数据:', metadata)
+        console.log('Successfully fetched and processed video metadata:', metadata)
         setVideoMetadata(metadata)
 
         // 模拟评论数据
         // setComments(['真不错的视频！', '学到了很多，感谢分享'])
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching video metadata:', err)
-        setMetadataError('无法加载视频信息，请检查网络连接或稍后重试')
+        if (err.message.includes('Failed to fetch metadata')) {
+          setMetadataError(
+            'Network error: Failed to fetch video metadata. Please check the gateway URL and your network connection.'
+          )
+          console.error(
+            'Specific Error: Network error. Check gateway URL and connectivity.'
+          )
+        } else if (err instanceof SyntaxError) {
+          // Likely a JSON parsing error
+          setMetadataError(
+            'Error parsing video metadata. The data received from the gateway may not be valid JSON.'
+          )
+          console.error(
+            'Specific Error: JSON parsing error. The response from the gateway was not valid JSON.'
+          )
+        } else {
+          setMetadataError(
+            'Unable to load video information. Please check your network connection or try again later.'
+          )
+        }
       } finally {
         setIsMetadataLoading(false)
       }
@@ -433,9 +448,16 @@ const VideoPage = () => {
   // 使用相同的格式处理环境变量
   const getPinataGateway = () => {
     // 确保返回完整URL，包括https://前缀
-    const gateway = process.env.NEXT_PUBLIC_PINATA_GW
+    let gateway = process.env.NEXT_PUBLIC_PINATA_GW
       ? process.env.NEXT_PUBLIC_PINATA_GW.replace(/^['"]|['"]$/g, '')
       : ''
+
+    if (!gateway) {
+      console.warn(
+        'NEXT_PUBLIC_PINATA_GW is not set or is an empty string. Defaulting to public gateway: gateway.pinata.cloud'
+      )
+      gateway = 'gateway.pinata.cloud'
+    }
 
     // 确保URL以https://开头
     return gateway.startsWith('http') ? gateway : `https://${gateway}`
@@ -471,13 +493,15 @@ const VideoPage = () => {
   }
 
   const videoUrl = `${getPinataGateway()}/ipfs/${videoMetadata.videoCid}`
+  console.log('Public video URL for player:', videoUrl);
 
   // 读取加密视频的二进制数据
-  const fetchEncryptedVideo = async (videoUrl: string): Promise<string> => {
+  const fetchEncryptedVideo = async (urlToFetch: string): Promise<string> => {
+    console.log('Fetching encrypted video from URL:', urlToFetch);
     try {
-      const response = await fetch(videoUrl)
+      const response = await fetch(urlToFetch)
       if (!response.ok) {
-        throw new Error(`获取加密视频失败: ${response.statusText}`)
+        throw new Error(`Failed to fetch encrypted video: ${response.statusText}`)
       }
 
       // 加载 ArrayBuffer
@@ -489,10 +513,18 @@ const VideoPage = () => {
       // 转换为 Base64 字符串
       const uint8Array = new Uint8Array(encryptedArrayBuffer)
       const ciphertext = fromByteArray(uint8Array)
-      console.log('从 IPFS 加载 ciphertext:', {
+      console.log('Loaded ciphertext from IPFS:', {
         length: ciphertext.length,
-        url: videoUrl,
+        url: urlToFetch, // Changed from videoUrl to urlToFetch to match param
       })
+      // Log ciphertext length or snippet
+      console.log('Fetched ciphertext length in fetchEncryptedVideo:', ciphertext?.length);
+      if (ciphertext?.length > 60) {
+        console.log('Ciphertext snippet in fetchEncryptedVideo:', ciphertext.substring(0,60) + "...");
+      } else {
+        console.log('Ciphertext in fetchEncryptedVideo:', ciphertext);
+      }
+
 
       // 验证 ciphertext
       if (!ciphertext || typeof ciphertext !== 'string') {
@@ -501,11 +533,11 @@ const VideoPage = () => {
 
       return ciphertext
     } catch (error) {
-      console.error('读取加密视频失败:', error)
+      console.error('Error reading encrypted video:', error)
       const message =
         error instanceof Error
-          ? `读取加密视频失败: ${error.message}`
-          : `读取加密视频失败: ${String(error)}`
+          ? `Error reading encrypted video: ${error.message}`
+          : `Error reading encrypted video: ${String(error)}`
       throw new Error(message)
     }
   }
@@ -545,44 +577,75 @@ const VideoPage = () => {
                     )}
                     <button
                       onClick={async () => {
-                        console.log('videoMetadata', videoMetadata)
-                        console.log('userAddress', userAddress)
-                        console.log('walletWithProvider', walletWithProvider)
+                        console.log('Video metadata for decryption:', videoMetadata)
+                        console.log('User address for decryption:', userAddress)
+                        console.log('Wallet provider available:', !!walletWithProvider)
+
                         if (
                           !videoMetadata ||
                           !userAddress ||
                           !walletWithProvider
                         ) {
-                          setDecryptError('请连接钱包并确保视频信息完整')
+                          setDecryptError('Please connect your wallet and ensure video information is complete.')
+                          if (!videoMetadata) console.error("Decryption failed: videoMetadata is null or undefined.")
+                          if (!userAddress) console.error("Decryption failed: userAddress is null or undefined.")
+                          if (!walletWithProvider) console.error("Decryption failed: walletWithProvider is null or undefined.")
                           return
                         }
+                        
+                        // Log specific critical metadata fields
+                        console.log('videoMetadata.dataToEncryptHash:', videoMetadata.dataToEncryptHash);
+                        console.log('videoMetadata.videoCid:', videoMetadata.videoCid);
+
+
                         try {
                           setIsDecrypting(true)
                           setDecryptError(null)
-                          console.log('开始解密视频...')
+                          console.log('Starting video decryption...')
+                          console.log('Video URL for fetching encrypted content:', videoUrl)
                           const ciphertext: string = await fetchEncryptedVideo(
                             videoUrl
                           )
-                          console.log('获取到的加密视频内容:', ciphertext)
+                          // Log ciphertext length or snippet
+                          console.log('Fetched ciphertext length:', ciphertext?.length);
+                          if (ciphertext?.length > 100) {
+                            console.log('Ciphertext snippet:', ciphertext.substring(0,100) + "...");
+                          } else {
+                            console.log('Ciphertext:', ciphertext);
+                          }
+
+
+                          console.log('Calling handleVideoDecryption with arguments:', {
+                            dataToEncryptHash: videoMetadata.dataToEncryptHash!,
+                            ciphertextLength: ciphertext?.length,
+                            userAddress,
+                          });
                           const decryptedFile = await handleVideoDecryption(
                             videoMetadata.dataToEncryptHash!,
                             ciphertext,
                             userAddress,
                             walletWithProvider
                           )
+
                           if (decryptedFile) {
+                            console.log('Decrypted file details:', {
+                              name: decryptedFile.name,
+                              size: decryptedFile.size,
+                              type: decryptedFile.type,
+                            });
                             const url = URL.createObjectURL(decryptedFile)
-                            console.log('设置解密视频 URL:', url)
+                            console.log('Decrypted video URL for player:', url)
                             setDecryptedVideoUrl(url)
                           } else {
-                            setDecryptError('解密失败：无法生成解密文件')
+                            console.error('Decryption failed: handleVideoDecryption returned null or undefined.')
+                            setDecryptError('Decryption failed: Unable to generate decrypted file.')
                           }
-                        } catch (error) {
-                          console.error('解密失败:', error)
+                        } catch (error: any) {
+                          console.error('Decryption process failed:', error)
                           const message =
                             error instanceof Error
-                              ? `解密失败: ${error.message}`
-                              : '解密失败：未知错误'
+                              ? `Decryption failed: ${error.message}`
+                              : 'Decryption failed: An unknown error occurred.'
                           setDecryptError(message)
                         } finally {
                           setIsDecrypting(false)
