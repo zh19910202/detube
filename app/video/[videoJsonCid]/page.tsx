@@ -13,19 +13,9 @@ import { handleVideoDecryption } from '../../lib/lit/handleVideoDecryption'
 import { ethers } from 'ethers'
 import { fromByteArray } from 'base64-js'
 import Comments from '@/app/components/Comments' // 导入评论组件
-import { formatDisplayAddress } from '../../lib/utils'
-
-// 添加防抖函数
-function debounce<T extends (...args: Parameters<T>) => void>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout
-  return function (...args: Parameters<T>) {
-    clearTimeout(timeout)
-    timeout = setTimeout(() => func(...args), wait)
-  }
-}
+import { formatDisplayAddress, debounce } from '../../lib/utils' // debounce was already moved in a previous step, but the read file content was stale
+import { usePinata } from '../../hooks/usePinata'
+import VideoCard from '@/app/components/VideoCard'
 
 // 确保地址格式正确的辅助函数
 const formatEthAddress = (address: string): `0x${string}` | null => {
@@ -79,6 +69,11 @@ const SUBSCRIPTION_CONTRACT_ADDRESS =
 
 const VideoPage = () => {
   const { videoJsonCid } = useParams()
+  const {
+    videos: allVideos,
+    loading: recommendationsLoading,
+    getLatestCIDs,
+  } = usePinata(7) // Fetch 7 to have some buffer
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null)
   const [isDecrypting, setIsDecrypting] = useState(false)
   const [decryptedVideoUrl, setDecryptedVideoUrl] = useState<string | null>(
@@ -173,6 +168,10 @@ const VideoPage = () => {
   useEffect(() => {
     checkSubscriptionStatus()
   }, [checkSubscriptionStatus])
+
+  useEffect(() => {
+    getLatestCIDs()
+  }, [getLatestCIDs])
 
   // 处理订阅
   const handleSubscribe = async () => {
@@ -463,6 +462,16 @@ const VideoPage = () => {
     return gateway.startsWith('http') ? gateway : `https://${gateway}`
   }
 
+  const { videoJsonCid: currentVideoCid } = useParams()
+  const recommendedVideos = useMemo(() => {
+    if (!allVideos || allVideos.length === 0) {
+      return []
+    }
+    return allVideos
+      .filter((video) => video.cid !== currentVideoCid)
+      .slice(0, 5)
+  }, [allVideos, currentVideoCid])
+
   if (isMetadataLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-background text-foreground">
@@ -556,7 +565,7 @@ const VideoPage = () => {
                   width="100%"
                   controls
                   autoPlay
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
               ) : decryptedVideoUrl ? (
                 <video
@@ -564,7 +573,7 @@ const VideoPage = () => {
                   width="100%"
                   controls
                   autoPlay
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary">
@@ -966,46 +975,16 @@ const VideoPage = () => {
               Recommended
             </h3>
             <div className="space-y-4">
-              {/* 推荐视频项 - Needs data source and styling */}
-              {[1, 2, 3, 4, 5].map(
-                (
-                  _,
-                  index // Placeholder loop
-                ) => (
-                  <div
-                    key={index}
-                    className="flex items-start group cursor-pointer p-2 rounded-lg hover:bg-secondary transition-colors">
-                    <div className="w-32 h-20 relative flex-shrink-0 bg-primary border border-secondary rounded-md overflow-hidden">
-                      {/* Placeholder for recommended video thumbnail */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <svg
-                          className="w-8 h-8 text-gray-500"
-                          viewBox="0 0 24 24"
-                          fill="currentColor">
-                          <path d="M8 5.14v14l11-7-11-7z" />
-                        </svg>
-                      </div>
-                      {/* Example Image (replace with actual data) */}
-                      {/* {index === 0 && videoMetadata.coverImageCid && (
-                      <Image src={`${getPinataGateway()}/ipfs/${videoMetadata.coverImageCid}`} alt="Video thumbnail" fill className="object-cover" />
-                    )} */}
-                      <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
-                        0:00 {/* Placeholder duration */}
-                      </div>
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <h4 className="font-semibold text-foreground text-sm line-clamp-2 group-hover:text-accent transition-colors">
-                        Recommended Video Title {index + 1}
-                      </h4>
-                      <p className="text-xs text-gray-400 mt-1 line-clamp-1">
-                        Creator Name
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Views • Upload Date
-                      </p>
-                    </div>
-                  </div>
-                )
+              {recommendationsLoading ? (
+                <p className="text-gray-400">Loading recommendations...</p>
+              ) : recommendedVideos.length === 0 ? (
+                <p className="text-gray-400">
+                  No other videos available to recommend.
+                </p>
+              ) : (
+                recommendedVideos.map((video) => (
+                  <VideoCard key={video.cid} video={video} />
+                ))
               )}
             </div>
           </div>
