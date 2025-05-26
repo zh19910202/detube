@@ -128,8 +128,8 @@ function useComments({
           isLoading: false,
           error: null,
         }));
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
           console.log('Fetch aborted due to component unmount');
           return;
         }
@@ -245,13 +245,18 @@ function useComments({
         await fetchComments(false);
         setState((prev) => ({ ...prev, isSubmitting: false }));
         return { success: true };
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[addComment] Error adding comment:', err);
         let errorMessage = 'Failed to add comment';
-        if (err.code === 4001) {
-          errorMessage = 'User cancelled signature';
-        } else if (err.code === -32603) {
-          errorMessage = 'Wallet connection error, please try again';
+        if (typeof err === 'object' && err !== null && 'code' in err) {
+          const code = (err as { code: unknown }).code;
+          if (code === 4001) {
+            errorMessage = 'User cancelled signature';
+          } else if (code === -32603) {
+            errorMessage = 'Wallet connection error, please try again';
+          } else if (err instanceof Error) {
+            errorMessage = err.message;
+          }
         } else if (err instanceof Error) {
           errorMessage = err.message;
         }
