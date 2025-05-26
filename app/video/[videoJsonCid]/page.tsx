@@ -266,27 +266,31 @@ const VideoPage = () => {
 
         // 模拟评论数据
         // setComments(['真不错的视频！', '学到了很多，感谢分享'])
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching video metadata:', err)
-        if (err.message.includes('Failed to fetch metadata')) {
-          setMetadataError(
-            'Network error: Failed to fetch video metadata. Please check the gateway URL and your network connection.'
-          )
-          console.error(
-            'Specific Error: Network error. Check gateway URL and connectivity.'
-          )
-        } else if (err instanceof SyntaxError) {
-          // Likely a JSON parsing error
-          setMetadataError(
-            'Error parsing video metadata. The data received from the gateway may not be valid JSON.'
-          )
-          console.error(
-            'Specific Error: JSON parsing error. The response from the gateway was not valid JSON.'
-          )
+        if (err instanceof Error) {
+          if (err.message.includes('Failed to fetch metadata')) {
+            setMetadataError(
+              'Network error: Failed to fetch video metadata. Please check the gateway URL and your network connection.'
+            )
+            console.error(
+              'Specific Error: Network error. Check gateway URL and connectivity.'
+            )
+          } else if (err instanceof SyntaxError) {
+            // Likely a JSON parsing error
+            setMetadataError(
+              'Error parsing video metadata. The data received from the gateway may not be valid JSON.'
+            )
+            console.error(
+              'Specific Error: JSON parsing error. The response from the gateway was not valid JSON.'
+            )
+          } else {
+            setMetadataError(
+              'Unable to load video information. Please check your network connection or try again later.'
+            )
+          }
         } else {
-          setMetadataError(
-            'Unable to load video information. Please check your network connection or try again later.'
-          )
+          setMetadataError('Unable to load video information. An unknown error occurred.');
         }
       } finally {
         setIsMetadataLoading(false)
@@ -655,7 +659,7 @@ const VideoPage = () => {
                             console.error('Decryption failed: handleVideoDecryption returned null or undefined.')
                             setDecryptError('Decryption failed: Unable to generate decrypted file.')
                           }
-                        } catch (error: any) {
+                        } catch (error: unknown) {
                           console.error('Decryption process failed:', error)
                           const message =
                             error instanceof Error
