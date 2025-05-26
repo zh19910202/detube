@@ -5,15 +5,10 @@ import Link from 'next/link'
 import { VideoMetadata } from '../hooks/usePinata'
 import { useState, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
+import { formatDisplayAddress } from '../lib/utils'
 
 interface VideoCardProps {
   video: VideoMetadata
-}
-
-const formatDisplayAddress = (address?: string): string => {
-  if (!address) return 'Unknown Creator'
-  if (address.length <= 10) return address
-  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
