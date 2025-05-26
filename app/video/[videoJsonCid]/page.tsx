@@ -79,6 +79,7 @@ const VideoPage = () => {
   const [decryptedVideoUrl, setDecryptedVideoUrl] = useState<string | null>(
     null
   )
+  const [isVideoReadyForDisplay, setIsVideoReadyForDisplay] = useState(false) // Added for fade-in effect
   const [isLoading, setIsLoading] = useState(false)
   const [isMetadataLoading, setIsMetadataLoading] = useState(true)
   const [metadataError, setMetadataError] = useState<string | null>(null)
@@ -569,7 +570,10 @@ const VideoPage = () => {
                   width="100%"
                   controls
                   autoPlay
-                  className="w-full h-full object-cover"
+                  onCanPlay={() => setIsVideoReadyForDisplay(true)}
+                  className={`w-full h-full object-cover ${
+                    isVideoReadyForDisplay ? 'opacity-100' : 'opacity-0'
+                  } transition-opacity duration-500 ease-in-out`}
                 />
               ) : decryptedVideoUrl ? (
                 <video
