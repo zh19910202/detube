@@ -7,6 +7,7 @@ import {
   useWaitForTransactionReceipt,
   useAccount,
 } from 'wagmi'
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { parseEther, isAddress } from 'viem'
 import { VideoMetadata } from '../../hooks/usePinata'
 import { handleVideoDecryption } from '../../lib/lit/handleVideoDecryption'
@@ -100,6 +101,7 @@ const VideoPage = () => {
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash })
   const { isConnected, address: userAddress } = useAccount() // 获取当前用户的钱包地址
+  const { openConnectModal } = useConnectModal(); // RainbowKit hook for connect modal
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [walletWithProvider, setWalletWithProvider] = useState<ethers.Signer>()
   const [decryptError, setDecryptError] = useState<string | null>(null) // 新增解密错误状态
@@ -884,28 +886,23 @@ const VideoPage = () => {
                     </div>
                   </div>
                   <button
-                    onClick={handleSendTip}
+                    onClick={isConnected ? handleSendTip : openConnectModal}
                     className={`px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center transition-colors border
                       ${
-                        isConnected &&
-                        transactionStatus !== 'pending' &&
-                        transactionStatus !== 'confirming'
-                          ? 'bg-accent text-background hover:bg-accent-hover border-accent'
-                          : 'bg-secondary text-gray-400 cursor-not-allowed border-secondary'
-                      } ${
-                      transactionStatus === 'pending' ||
-                      transactionStatus === 'confirming'
-                        ? 'bg-accent/70 text-background cursor-wait border-accent/50'
-                        : ''
-                    } disabled:opacity-60`}
+                        !isConnected
+                          ? 'bg-accent text-background hover:bg-accent-hover border-accent' // Styling for "Connect Wallet"
+                          : transactionStatus === 'pending' || transactionStatus === 'confirming'
+                          ? 'bg-accent/70 text-background cursor-wait border-accent/50' // Styling for pending/confirming tip
+                          : 'bg-accent text-background hover:bg-accent-hover border-accent' // Styling for active "Tip"
+                      } disabled:opacity-60`}
                     disabled={
-                      !isConnected ||
-                      transactionStatus === 'pending' ||
-                      transactionStatus === 'confirming'
+                      isConnected && (transactionStatus === 'pending' || transactionStatus === 'confirming')
                     }
-                    title="Tip Creator">
-                    {transactionStatus === 'pending' ||
-                    transactionStatus === 'confirming' ? (
+                    title={isConnected ? "Tip Creator" : "Connect wallet to tip"}>
+                    {!isConnected ? (
+                      '连接钱包'
+                    ) : transactionStatus === 'pending' ||
+                      transactionStatus === 'confirming' ? (
                       <>
                         <svg
                           className="animate-spin h-4 w-4 text-background"
@@ -947,8 +944,8 @@ const VideoPage = () => {
                 </div>
               </div>
 
-              {/* 交易状态消息 */}
-              {renderTransactionStatus && (
+              {/* 交易状态消息 - Conditionally render if user is connected, otherwise button handles connect prompt */}
+              {isConnected && renderTransactionStatus && (
                 <div className="w-full mt-3 md:text-right">
                   {' '}
                   {/* Aligned to right on medium screens */}
