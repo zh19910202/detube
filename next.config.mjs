@@ -1,3 +1,9 @@
+import nextBundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = nextBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 const nextConfig = {
   webpack (config) {
     config.resolve.fallback = {
@@ -37,4 +43,4 @@ const nextConfig = {
   },
 }
 
-export default nextConfig 
+export default withBundleAnalyzer(nextConfig);
