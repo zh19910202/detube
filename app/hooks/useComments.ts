@@ -149,7 +149,7 @@ function useComments({
 
     const startAutoRefresh = () => {
       if (refreshTimerRef.current) {
-        clearInterval(refetchTimerRef.current);
+        clearInterval(refreshTimerRef.current);
       }
 
       refreshTimerRef.current = setInterval(() => {
