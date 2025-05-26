@@ -3,19 +3,9 @@ import { CommentManager, Comment } from '@/app/lib/commentManager'
 
 const pinataJWT = process.env.PINATA_JWT || process.env.NEXT_PUBLIC_PINATA_JWT
 
-// This is a placeholder for how you might get CIDs for a video.
-// In a real app, this would query a database or a decentralized index.
-async function getCommentCIDsForVideo(videoId: string): Promise<string[]> {
-  console.log(`Fetching comment CIDs for video: ${videoId}`)
-  console.warn(`getCommentCIDsForVideo: Placeholder function called for video ${videoId}. 
-                 You need to implement a way to store and retrieve comment CIDs associated with video IDs.`)
-  // Example: return ['someCid1', 'someCid2'];
-  return []
-}
-
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { videoId: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ videoId: string }> }
 ) {
   console.log('GET /api/comments/[videoId] - Starting comment fetch')
   console.log('Pinata JWT status:', !!pinataJWT)
@@ -30,6 +20,9 @@ export async function GET(
 
   console.log('Initializing CommentManager')
   const commentManager = new CommentManager(pinataJWT)
+  
+  // 等待 params Promise 解析
+  const params = await context.params
   const videoId = params.videoId
 
   if (!videoId) {
@@ -77,13 +70,15 @@ export async function GET(
     console.log(`Successfully fetched ${comments.length} comments`)
 
     return NextResponse.json(comments, { status: 200 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error in GET /api/comments/${videoId}:`, error)
+    const err =
+      error instanceof Error ? error : new Error('Unknown error occurred')
     return NextResponse.json(
       {
         error: 'Failed to fetch comments',
-        details: error.message,
-        stack: error.stack,
+        details: err.message,
+        stack: err.stack,
       },
       { status: 500 }
     )

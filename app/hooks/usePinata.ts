@@ -45,6 +45,13 @@ interface PinataFileItem {
 // 定义上传阶段类型
 export type UploadStage = 'idle' | 'cover' | 'video' | 'metadata' | 'complete'
 
+// 添加内存缓存
+const metadataCache = new Map<
+  string,
+  { data: VideoMetadata; timestamp: number }
+>()
+const CACHE_TTL = 5 * 60 * 1000 // 5分钟缓存时间
+
 export const usePinata = (limit: number = 8) => {
   const [videos, setVideos] = useState<VideoMetadata[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -74,6 +81,13 @@ export const usePinata = (limit: number = 8) => {
   // 从 IPFS 获取元数据 JSON 文件内容
   const fetchMetadata = async (cid: string): Promise<VideoMetadata | null> => {
     try {
+      // 检查缓存
+      const cached = metadataCache.get(cid)
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        console.log('Using cached metadata for CID:', cid)
+        return cached.data
+      }
+
       // 使用API路由代理请求，避免CORS问题
       const response = await fetch(`/api/pinata?cid=${cid}`)
 
@@ -97,7 +111,7 @@ export const usePinata = (limit: number = 8) => {
       }
 
       const timestamp = jsonContent.timestamp || '2023-01-01T00:00:00.000Z'
-      return {
+      const metadata = {
         cid,
         title: jsonContent.title || '未命名视频',
         description: jsonContent.description || '无描述',
@@ -113,6 +127,11 @@ export const usePinata = (limit: number = 8) => {
             : true,
         dataToEncryptHash: jsonContent.dataToEncryptHash || '',
       }
+
+      // 更新缓存
+      metadataCache.set(cid, { data: metadata, timestamp: Date.now() })
+
+      return metadata
     } catch (err) {
       console.error(`解析元数据出错 CID ${cid}:`, err)
       return null
@@ -132,7 +151,11 @@ export const usePinata = (limit: number = 8) => {
 
       // 使用API路由代理请求获取文件列表
       const response = await fetch(
-        `/api/pinata?action=list&groupId=${METADATA_GROUP_ID}`
+        `/api/pinata?action=list&groupId=${METADATA_GROUP_ID}`,
+        {
+          // 使用浏览器默认的缓存机制，API路由已经设置了合适的缓存控制头
+          cache: 'default',
+        }
       )
 
       if (!response.ok) {
@@ -140,7 +163,6 @@ export const usePinata = (limit: number = 8) => {
       }
 
       const groupResponse = await response.json()
-      console.log('groupResponse', groupResponse)
       console.log('组响应:', JSON.stringify(groupResponse, null, 2))
 
       // 处理Pinata API返回的数据结构
@@ -174,7 +196,6 @@ export const usePinata = (limit: number = 8) => {
         })
       )
 
-      console.log(`获取到 ${mappedFiles.length} 个文件`)
       return mappedFiles
     } catch (err) {
       console.error('SDK 获取组文件出错:', err)
@@ -484,7 +505,7 @@ export const usePinata = (limit: number = 8) => {
       return () => clearTimeout(loadingTimeout)
     }
     return () => setError(null)
-  }, [getLatestCIDs])
+  }, [getLatestCIDs, loading])
 
   return {
     videos,

@@ -138,13 +138,15 @@ export async function POST(request: NextRequest) {
       { message: 'Comment added successfully', cid },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/comments:', error)
+    const err =
+      error instanceof Error ? error : new Error('Unknown error occurred')
     return NextResponse.json(
       {
         error: 'Failed to add comment',
-        details: error.message,
-        stack: error.stack, // Be cautious about exposing stack traces in production
+        details: err.message,
+        stack: err.stack, // Be cautious about exposing stack traces in production
       },
       { status: 500 }
     )
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest) {
 // GET /api/comments/[videoId] would be in a different file: app/api/comments/[videoId]/route.ts
 // This file (route.ts) is for /api/comments
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   // Example: Basic GET handler for /api/comments (not specific to a videoId)
   // This might list all CIDs if you had a way to query them, or just be a placeholder.
   // For fetching comments for a SPECIFIC video, you need app/api/comments/[videoId]/route.ts

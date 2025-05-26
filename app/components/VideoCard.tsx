@@ -53,23 +53,23 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
         className="block flex flex-col flex-grow">
         <div className="relative w-full aspect-video overflow-hidden rounded-t-xl bg-secondary">
           {hasCoverImage && !imageError ? (
-            <Image
-              src={coverImageUrl}
-              alt={title}
-              fill
+                <Image
+                  src={coverImageUrl}
+                  alt={title}
+                  fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
               onError={handleImageError}
-              priority
-            />
-          ) : (
+                  priority
+                />
+            ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <div className="text-center p-4">
+                <div className="text-center p-4">
                 <p className="text-gray-400 text-sm font-medium">
                   Cover not available
-                </p>
+                  </p>
+                </div>
               </div>
-            </div>
           )}
           {/* Privacy Badge/Text */}
           <div className="absolute top-3 right-3 z-10">
@@ -88,8 +88,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
         </div>
         <div className="p-4 flex flex-col flex-grow">
           <h3 className="font-bold text-lg text-foreground group-hover:text-accent transition-colors duration-200 line-clamp-2 mb-2">
-            {title}
-          </h3>
+                {title}
+              </h3>
           <p className="text-gray-400 text-sm line-clamp-3 mb-2 flex-grow">
             {description || 'No description available.'}
           </p>

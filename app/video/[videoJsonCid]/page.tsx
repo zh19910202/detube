@@ -9,7 +9,6 @@ import {
 } from 'wagmi'
 import { parseEther, isAddress } from 'viem'
 import { VideoMetadata } from '../../hooks/usePinata'
-import Image from 'next/image'
 import { handleVideoDecryption } from '../../lib/lit/handleVideoDecryption'
 import { ethers } from 'ethers'
 import { fromByteArray } from 'base64-js'
@@ -117,7 +116,7 @@ const VideoPage = () => {
   const prevDecryptedUrlRef = useRef<string | null>(null)
   // 使用useMemo缓存交易状态，减少状态变化导致的重渲染
   // 初始化钱包提供者
-  async function initWalletProvider() {
+  const initWalletProvider = useCallback(async () => {
     try {
       if (!isConnected || !userAddress) {
         console.log('钱包未连接或用户地址为空')
@@ -145,23 +144,15 @@ const VideoPage = () => {
       console.error('钱包初始化失败:', error)
       setWalletWithProvider(undefined)
     }
-  }
+  }, [isConnected, userAddress])
 
   // 使用 Effect 调用
   useEffect(() => {
     initWalletProvider()
-  }, [isConnected, userAddress])
+  }, [isConnected, userAddress, initWalletProvider])
 
-  // 单独的Effect用于检查订阅状态
-  useEffect(() => {
-    // 当钱包连接时，立即检查订阅状态
-    if (isConnected && userAddress) {
-      checkSubscriptionStatus()
-    }
-  }, [isConnected, userAddress])
-
-  // 检查用户是否已订阅
-  const checkSubscriptionStatus = async () => {
+  // 检查订阅状态
+  const checkSubscriptionStatus = useCallback(async () => {
     if (!isConnected || !userAddress) {
       return
     }
@@ -183,7 +174,11 @@ const VideoPage = () => {
       console.error('检查订阅状态失败:', error)
       setIsSubscribed(false)
     }
-  }
+  }, [isConnected, userAddress])
+
+  useEffect(() => {
+    checkSubscriptionStatus()
+  }, [checkSubscriptionStatus])
 
   // 处理订阅
   const handleSubscribe = async () => {
@@ -302,7 +297,7 @@ const VideoPage = () => {
       }, 2000)
       return () => clearTimeout(timer)
     }
-  }, [isConfirmed, hash])
+  }, [isConfirmed, hash, checkSubscriptionStatus])
   // 使用 useRef 跟踪上一个解密 URL
 
   // 清理解密 URL（组件卸载时）
@@ -476,9 +471,6 @@ const VideoPage = () => {
   }
 
   const videoUrl = `${getPinataGateway()}/ipfs/${videoMetadata.videoCid}`
-  const coverImageUrl = `${getPinataGateway()}/ipfs/${
-    videoMetadata.coverImageCid
-  }`
 
   // 读取加密视频的二进制数据
   const fetchEncryptedVideo = async (videoUrl: string): Promise<string> => {

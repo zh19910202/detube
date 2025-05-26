@@ -49,9 +49,12 @@ export async function GET(request: NextRequest) {
       // 获取响应数据
       const data = await response.json()
 
-      // 添加CORS头信息并返回代理的响应
+      // 添加CORS头信息和缓存控制头并返回代理的响应
       return NextResponse.json(data, {
-        headers: corsHeaders,
+        headers: {
+          ...corsHeaders,
+          'Cache-Control': 'public, max-age=60, stale-while-revalidate=300', // 1分钟缓存，5分钟后台重新验证
+        },
       })
     } catch (error) {
       console.error('获取Pinata文件列表失败:', error)
@@ -94,9 +97,12 @@ export async function GET(request: NextRequest) {
     // 获取响应数据
     const data = await response.json()
 
-    // 添加CORS头信息并返回代理的响应
+    // 添加CORS头信息和缓存控制头并返回代理的响应
     return NextResponse.json(data, {
-      headers: corsHeaders,
+      headers: {
+        ...corsHeaders,
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600', // 5分钟缓存，10分钟后台重新验证
+      },
     })
   } catch (error) {
     console.error('代理Pinata请求失败:', error)

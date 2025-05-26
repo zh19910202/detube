@@ -4,97 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount } from 'wagmi'
 import Link from 'next/link'
-import { usePinata, UploadStage } from '../hooks/usePinata'
+import { usePinata } from '../hooks/usePinata'
 import { encryptVideo } from '../lib/lit/encrypt'
 import { accessControlConditions } from '../lib/lit/accessControl'
-
-// Extend UploadStage to include encrypting
-type ExtendedUploadStage = UploadStage | 'encrypting'
-
-// ProgressButton 组件
-const ProgressButton: React.FC<{
-  progress: number
-  stage: ExtendedUploadStage
-  label: string
-  disabled: boolean
-  onClick: () => void
-}> = ({ progress, stage, label, disabled, onClick }) => {
-  // 统一主题颜色配置
-  const stageStyles: Record<
-    ExtendedUploadStage,
-    { hue: number; text: string }
-  > = {
-    idle: { hue: 210, text: label },
-    encrypting: { hue: 180, text: '视频加密中' }, // 新增加密阶段
-    cover: { hue: 210, text: '上传封面' },
-    video: { hue: 120, text: '上传视频' },
-    metadata: { hue: 60, text: '提交元数据' },
-    complete: { hue: 270, text: '上传完成' },
-  }
-
-  // 动态计算背景颜色（HSL）
-  const getProgressColor = () => {
-    const { hue } = stageStyles[stage]
-    return `hsl(${hue}, 70%, ${50 + progress * 0.2}%)`
-  }
-
-  // 动态条纹颜色
-  const getStripeColor = () => {
-    const { hue } = stageStyles[stage]
-    return `hsl(${hue}, 70%, 40%)`
-  }
-
-  // 获取按钮文本
-  const getStageText = () => {
-    const { text } = stageStyles[stage]
-    return progress === 0 || stage === 'encrypting'
-      ? text
-      : `${text} (${Math.round(progress)}%)`
-  }
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="relative w-40 h-10 overflow-hidden text-white font-medium py-2 px-4 rounded-2xl transition-all duration-200 shadow-md hover:shadow-lg">
-      {/* 底层按钮 - 灰色底 */}
-      <div className="absolute inset-0 bg-gray-500 rounded-2xl"></div>
-
-      {/* 进度层 - 动态颜色 */}
-      <div
-        className="absolute top-0 left-0 bottom-0 overflow-hidden rounded-2xl transition-all duration-300 z-10"
-        style={{ width: `${progress}%`, backgroundColor: getProgressColor() }}>
-        {/* 动态条纹效果 */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div
-            className={`h-full w-[200%] opacity-20`}
-            style={{
-              backgroundColor: getStripeColor(),
-              backgroundImage:
-                'linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.4) 25%, rgba(255,255,255,0.4) 50%, transparent 50%, transparent 75%, rgba(255,255,255,0.4) 75%, rgba(255,255,255,0.4) 100%)',
-              backgroundSize: '20px 20px',
-              animation: 'moveStripes 1s linear infinite',
-            }}></div>
-        </div>
-      </div>
-
-      {/* 按钮文本 */}
-      <span className="relative z-20">{getStageText()}</span>
-
-      {/* 内联动画 */}
-      <style jsx>{`
-        @keyframes moveStripes {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-20px);
-          }
-        }
-      `}</style>
-    </button>
-  )
-}
 
 const Navbar: React.FC = () => {
   const { isConnected, address } = useAccount()
