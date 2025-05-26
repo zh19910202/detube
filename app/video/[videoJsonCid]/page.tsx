@@ -7,7 +7,7 @@ import {
   useWaitForTransactionReceipt,
   useAccount,
 } from 'wagmi'
-import { useConnectModal } from '@rainbow-me/rainbowkit';
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { parseEther, isAddress } from 'viem'
 import { VideoMetadata } from '../../hooks/usePinata'
 import { handleVideoDecryption } from '../../lib/lit/handleVideoDecryption'
@@ -101,7 +101,7 @@ const VideoPage = () => {
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({ hash })
   const { isConnected, address: userAddress } = useAccount() // 获取当前用户的钱包地址
-  const { openConnectModal } = useConnectModal(); // RainbowKit hook for connect modal
+  const { openConnectModal } = useConnectModal() // RainbowKit hook for connect modal
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [walletWithProvider, setWalletWithProvider] = useState<ethers.Signer>()
   const [decryptError, setDecryptError] = useState<string | null>(null) // 新增解密错误状态
@@ -264,7 +264,10 @@ const VideoPage = () => {
           dataToEncryptHash: data.dataToEncryptHash || '', // 获取原始视频数据的哈希值
         }
 
-        console.log('Successfully fetched and processed video metadata:', metadata)
+        console.log(
+          'Successfully fetched and processed video metadata:',
+          metadata
+        )
         setVideoMetadata(metadata)
 
         // 模拟评论数据
@@ -293,7 +296,9 @@ const VideoPage = () => {
             )
           }
         } else {
-          setMetadataError('Unable to load video information. An unknown error occurred.');
+          setMetadataError(
+            'Unable to load video information. An unknown error occurred.'
+          )
         }
       } finally {
         setIsMetadataLoading(false)
@@ -509,15 +514,17 @@ const VideoPage = () => {
   }
 
   const videoUrl = `${getPinataGateway()}/ipfs/${videoMetadata.videoCid}`
-  console.log('Public video URL for player:', videoUrl);
+  console.log('Public video URL for player:', videoUrl)
 
   // 读取加密视频的二进制数据
   const fetchEncryptedVideo = async (urlToFetch: string): Promise<string> => {
-    console.log('Fetching encrypted video from URL:', urlToFetch);
+    console.log('Fetching encrypted video from URL:', urlToFetch)
     try {
       const response = await fetch(urlToFetch)
       if (!response.ok) {
-        throw new Error(`Failed to fetch encrypted video: ${response.statusText}`)
+        throw new Error(
+          `Failed to fetch encrypted video: ${response.statusText}`
+        )
       }
 
       // 加载 ArrayBuffer
@@ -534,13 +541,18 @@ const VideoPage = () => {
         url: urlToFetch, // Changed from videoUrl to urlToFetch to match param
       })
       // Log ciphertext length or snippet
-      console.log('Fetched ciphertext length in fetchEncryptedVideo:', ciphertext?.length);
+      console.log(
+        'Fetched ciphertext length in fetchEncryptedVideo:',
+        ciphertext?.length
+      )
       if (ciphertext?.length > 60) {
-        console.log('Ciphertext snippet in fetchEncryptedVideo:', ciphertext.substring(0,60) + "...");
+        console.log(
+          'Ciphertext snippet in fetchEncryptedVideo:',
+          ciphertext.substring(0, 60) + '...'
+        )
       } else {
-        console.log('Ciphertext in fetchEncryptedVideo:', ciphertext);
+        console.log('Ciphertext in fetchEncryptedVideo:', ciphertext)
       }
-
 
       // 验证 ciphertext
       if (!ciphertext || typeof ciphertext !== 'string') {
@@ -592,59 +604,95 @@ const VideoPage = () => {
                       This video is private
                     </h3>
                     {decryptError && (
-                      <div className={
-                        decryptError === 'Please connect your wallet and ensure video information is complete.'
-                          ? "mb-4 p-3 rounded-md bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 text-sm"
-                          : "mb-4 text-red-400" // Fallback for other decrypt errors
-                      }>
+                      <div
+                        className={
+                          decryptError ===
+                          'Please connect your wallet and ensure video information is complete.'
+                            ? 'mb-4 p-3 rounded-md bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 text-sm'
+                            : 'mb-4 text-red-400' // Fallback for other decrypt errors
+                        }>
                         {decryptError}
                       </div>
                     )}
                     <button
                       onClick={async () => {
-                        console.log('Video metadata for decryption:', videoMetadata)
+                        console.log(
+                          'Video metadata for decryption:',
+                          videoMetadata
+                        )
                         console.log('User address for decryption:', userAddress)
-                        console.log('Wallet provider available:', !!walletWithProvider)
+                        console.log(
+                          'Wallet provider available:',
+                          !!walletWithProvider
+                        )
 
                         if (
                           !videoMetadata ||
                           !userAddress ||
                           !walletWithProvider
                         ) {
-                          setDecryptError('Please connect your wallet and ensure video information is complete.')
-                          if (!videoMetadata) console.error("Decryption failed: videoMetadata is null or undefined.")
-                          if (!userAddress) console.error("Decryption failed: userAddress is null or undefined.")
-                          if (!walletWithProvider) console.error("Decryption failed: walletWithProvider is null or undefined.")
+                          setDecryptError(
+                            'Please connect your wallet and ensure video information is complete.'
+                          )
+                          if (!videoMetadata)
+                            console.error(
+                              'Decryption failed: videoMetadata is null or undefined.'
+                            )
+                          if (!userAddress)
+                            console.error(
+                              'Decryption failed: userAddress is null or undefined.'
+                            )
+                          if (!walletWithProvider)
+                            console.error(
+                              'Decryption failed: walletWithProvider is null or undefined.'
+                            )
                           return
                         }
-                        
-                        // Log specific critical metadata fields
-                        console.log('videoMetadata.dataToEncryptHash:', videoMetadata.dataToEncryptHash);
-                        console.log('videoMetadata.videoCid:', videoMetadata.videoCid);
 
+                        // Log specific critical metadata fields
+                        console.log(
+                          'videoMetadata.dataToEncryptHash:',
+                          videoMetadata.dataToEncryptHash
+                        )
+                        console.log(
+                          'videoMetadata.videoCid:',
+                          videoMetadata.videoCid
+                        )
 
                         try {
                           setIsDecrypting(true)
                           setDecryptError(null)
                           console.log('Starting video decryption...')
-                          console.log('Video URL for fetching encrypted content:', videoUrl)
+                          console.log(
+                            'Video URL for fetching encrypted content:',
+                            videoUrl
+                          )
                           const ciphertext: string = await fetchEncryptedVideo(
                             videoUrl
                           )
                           // Log ciphertext length or snippet
-                          console.log('Fetched ciphertext length:', ciphertext?.length);
+                          console.log(
+                            'Fetched ciphertext length:',
+                            ciphertext?.length
+                          )
                           if (ciphertext?.length > 100) {
-                            console.log('Ciphertext snippet:', ciphertext.substring(0,100) + "...");
+                            console.log(
+                              'Ciphertext snippet:',
+                              ciphertext.substring(0, 100) + '...'
+                            )
                           } else {
-                            console.log('Ciphertext:', ciphertext);
+                            console.log('Ciphertext:', ciphertext)
                           }
 
-
-                          console.log('Calling handleVideoDecryption with arguments:', {
-                            dataToEncryptHash: videoMetadata.dataToEncryptHash!,
-                            ciphertextLength: ciphertext?.length,
-                            userAddress,
-                          });
+                          console.log(
+                            'Calling handleVideoDecryption with arguments:',
+                            {
+                              dataToEncryptHash:
+                                videoMetadata.dataToEncryptHash!,
+                              ciphertextLength: ciphertext?.length,
+                              userAddress,
+                            }
+                          )
                           const decryptedFile = await handleVideoDecryption(
                             videoMetadata.dataToEncryptHash!,
                             ciphertext,
@@ -657,13 +705,17 @@ const VideoPage = () => {
                               name: decryptedFile.name,
                               size: decryptedFile.size,
                               type: decryptedFile.type,
-                            });
+                            })
                             const url = URL.createObjectURL(decryptedFile)
                             console.log('Decrypted video URL for player:', url)
                             setDecryptedVideoUrl(url)
                           } else {
-                            console.error('Decryption failed: handleVideoDecryption returned null or undefined.')
-                            setDecryptError('Decryption failed: Unable to generate decrypted file.')
+                            console.error(
+                              'Decryption failed: handleVideoDecryption returned null or undefined.'
+                            )
+                            setDecryptError(
+                              'Decryption failed: Unable to generate decrypted file.'
+                            )
                           }
                         } catch (error: unknown) {
                           console.error('Decryption process failed:', error)
@@ -851,12 +903,7 @@ const VideoPage = () => {
                       {subscribeError}
                     </div>
                   )}
-                  {!isConnected &&
-                    !isSubscribed && ( // Show only if not connected and not yet trying to subscribe
-                      <div className="absolute -bottom-12 left-0 w-full text-sm text-yellow-300 bg-yellow-500/20 p-3 rounded-md border border-yellow-500/30 mt-1">
-                        Connect wallet to subscribe.
-                      </div>
-                    )}
+
                   {isConnected && subscriptionStatus === 'confirming' && (
                     <div className="absolute -bottom-12 left-0 w-full text-xs text-accent bg-accent/20 p-2 rounded-md border border-accent/30 mt-1">
                       Subscription confirming...
@@ -891,14 +938,19 @@ const VideoPage = () => {
                       ${
                         !isConnected
                           ? 'bg-accent text-background hover:bg-accent-hover border-accent' // Styling for "Connect Wallet"
-                          : transactionStatus === 'pending' || transactionStatus === 'confirming'
+                          : transactionStatus === 'pending' ||
+                            transactionStatus === 'confirming'
                           ? 'bg-accent/70 text-background cursor-wait border-accent/50' // Styling for pending/confirming tip
                           : 'bg-accent text-background hover:bg-accent-hover border-accent' // Styling for active "Tip"
                       } disabled:opacity-60`}
                     disabled={
-                      isConnected && (transactionStatus === 'pending' || transactionStatus === 'confirming')
+                      isConnected &&
+                      (transactionStatus === 'pending' ||
+                        transactionStatus === 'confirming')
                     }
-                    title={isConnected ? "Tip Creator" : "Connect wallet to tip"}>
+                    title={
+                      isConnected ? 'Tip Creator' : 'Connect wallet to tip'
+                    }>
                     {!isConnected ? (
                       '连接钱包'
                     ) : transactionStatus === 'pending' ||
