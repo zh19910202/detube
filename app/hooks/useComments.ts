@@ -1,34 +1,32 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Comment } from '@/app/lib/commentManager'
-import { useAccount, useSignMessage } from 'wagmi'
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Comment } from '@/app/lib/commentManager';
+import { useAccount, useSignMessage } from 'wagmi';
 
 export interface UseCommentsProps {
-  videoId: string
-  autoRefresh?: boolean // 自动刷新开关
-  refreshInterval?: number // 刷新间隔（毫秒）
+  videoId: string;
+  autoRefresh?: boolean;
+  refreshInterval?: number;
 }
 
 export interface NewCommentData {
-  text: string
-  parentId?: string // 支持回复评论
+  text: string;
+  parentId?: string;
 }
 
 export interface CommentState {
-  comments: Comment[]
-  isLoading: boolean
-  error: string | null
-  isSubmitting: boolean // 区分获取和提交的加载状态
-  hasMore: boolean // 是否还有更多评论
-  totalCount: number // 总评论数
+  comments: Comment[];
+  isLoading: boolean;
+  error: string | null;
+  isSubmitting: boolean;
+  hasMore: boolean;
+  totalCount: number;
 }
 
-// 评论验证规则
 const COMMENT_VALIDATION = {
   minLength: 1,
   maxLength: 5000,
-  // 简单的敏感词过滤（实际应用中应该用更完善的方案）
   forbiddenWords: ['spam', 'scam', '垃圾', '骗子'],
-} as const
+} as const;
 
 function useComments({
   videoId,
@@ -42,98 +40,85 @@ function useComments({
     isSubmitting: false,
     hasMore: false,
     totalCount: 0,
-  })
+  });
 
-  const { address, isConnected } = useAccount()
-  const { signMessageAsync, isPending: isSigning } = useSignMessage()
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync, isPending: isSigning } = useSignMessage();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 使用ref来跟踪组件是否已卸载，避免内存泄漏
-  const isMountedRef = useRef(true)
-  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null)
-
-  // 组件卸载时清理
+  // 清理函数
   useEffect(() => {
     return () => {
-      isMountedRef.current = false
-      if (refreshTimerRef.current) {
-        clearInterval(refreshTimerRef.current)
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-    }
-  }, [])
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, []);
 
-  /**
-   * 验证评论内容
-   */
   const validateComment = useCallback((text: string): string | null => {
     if (!text || text.trim().length < COMMENT_VALIDATION.minLength) {
-      return '评论内容不能为空'
+      return '评论内容不能为空';
     }
-
     if (text.length > COMMENT_VALIDATION.maxLength) {
-      return `评论内容不能超过${COMMENT_VALIDATION.maxLength}个字符`
+      return `评论内容不能超过${COMMENT_VALIDATION.maxLength}个字符`;
     }
-
-    // 检查敏感词
-    const lowerText = text.toLowerCase()
+    const lowerText = text.toLowerCase();
     const foundForbiddenWord = COMMENT_VALIDATION.forbiddenWords.find((word) =>
       lowerText.includes(word.toLowerCase())
-    )
-
+    );
     if (foundForbiddenWord) {
-      return '评论包含不当内容，请修改后重试'
+      return '评论包含不当内容，请修改后重试';
     }
+    return null;
+  }, []);
 
-    return null
-  }, [])
-
-  /**
-   * 获取评论列表
-   */
   const fetchComments = useCallback(
     async (showLoading = true) => {
-      if (!videoId) return
+      if (!videoId) {
+        console.warn('No videoId provided, skipping fetch');
+        return;
+      }
 
       if (showLoading) {
-        setState((prev) => ({ ...prev, isLoading: true, error: null }))
+        setState((prev) => ({ ...prev, isLoading: true, error: null }));
       }
 
       try {
-        console.log('正在获取视频评论:', videoId)
-
+        console.log('Fetching comments for videoId:', videoId);
+        abortControllerRef.current = new AbortController();
         const response = await fetch(`/api/comments/${videoId}`, {
-          // 添加缓存控制
           headers: {
             'Cache-Control': 'no-cache',
           },
-        })
+          signal: abortControllerRef.current.signal,
+        });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(
-            errorData.error || `获取评论失败: HTTP ${response.status}`
-          )
+            errorData.error || `Failed to fetch comments: HTTP ${response.status}`
+          );
         }
 
-        const data = await response.json()
-        console.log('获取到评论数据:', data)
+        const data = await response.json();
+        console.log('Fetched comments data:', data);
 
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return
-
-        // 处理不同的响应格式
-        let comments: Comment[] = []
-        let totalCount = 0
+        let comments: Comment[] = [];
+        let totalCount = 0;
 
         if (Array.isArray(data)) {
-          comments = data
-          totalCount = data.length
+          comments = data;
+          totalCount = data.length;
         } else if (data.comments && Array.isArray(data.comments)) {
-          comments = data.comments
-          totalCount = data.totalCount || data.comments.length
+          comments = data.comments;
+          totalCount = data.totalCount || data.comments.length;
         }
 
-        // 按时间戳排序（最新的在前）
-        comments.sort((a, b) => b.timestamp - a.timestamp)
+        comments.sort((a, b) => b.timestamp - a.timestamp);
 
         setState((prev) => ({
           ...prev,
@@ -142,121 +127,100 @@ function useComments({
           hasMore: comments.length < totalCount,
           isLoading: false,
           error: null,
-        }))
-      } catch (err: unknown) {
-        console.error('获取评论时出错:', err)
-
-        if (!isMountedRef.current) return
-
-        const error = err instanceof Error ? err : new Error('获取评论失败')
+        }));
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.log('Fetch aborted due to component unmount');
+          return;
+        }
+        console.error('Error fetching comments:', err);
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: error.message,
-        }))
+          error: err instanceof Error ? err.message : 'Failed to fetch comments',
+        }));
       }
     },
     [videoId]
-  )
+  );
 
-  /**
-   * 自动刷新评论
-   */
   useEffect(() => {
-    if (!autoRefresh || !videoId) return
+    if (!autoRefresh || !videoId) return;
 
     const startAutoRefresh = () => {
       if (refreshTimerRef.current) {
-        clearInterval(refreshTimerRef.current)
+        clearInterval(refetchTimerRef.current);
       }
 
       refreshTimerRef.current = setInterval(() => {
-        fetchComments(false) // 静默刷新，不显示加载状态
-      }, refreshInterval)
-    }
+        fetchComments(false);
+      }, refreshInterval);
+    };
 
-    startAutoRefresh()
+    startAutoRefresh();
 
     return () => {
       if (refreshTimerRef.current) {
-        clearInterval(refreshTimerRef.current)
+        clearInterval(refreshTimerRef.current);
       }
-    }
-  }, [autoRefresh, refreshInterval, fetchComments, videoId])
+    };
+  }, [autoRefresh, refreshInterval, fetchComments, videoId]);
 
-  /**
-   * 初始加载评论
-   */
   useEffect(() => {
-    fetchComments()
-  }, [fetchComments])
+    fetchComments();
+  }, [fetchComments]);
 
-  /**
-   * 添加新评论
-   */
   const addComment = useCallback(
     async (
       newCommentData: NewCommentData
     ): Promise<{ success: boolean; error?: string }> => {
-      console.log('[addComment] 开始添加评论:', {
+      console.log('[addComment] Starting to add comment:', {
         videoId,
         isConnected,
         address,
         newCommentData,
-      })
+      });
 
-      // 基础验证
       if (!videoId) {
-        return { success: false, error: '视频ID缺失' }
+        return { success: false, error: 'Video ID is missing' };
       }
-
       if (!isConnected || !address) {
-        return { success: false, error: '请先连接钱包' }
+        return { success: false, error: 'Please connect your wallet' };
       }
-
       if (!signMessageAsync) {
-        return { success: false, error: '签名功能不可用，请刷新页面重试' }
+        return { success: false, error: 'Signature function unavailable, please refresh' };
       }
 
-      // 验证评论内容
-      const validationError = validateComment(newCommentData.text)
+      const validationError = validateComment(newCommentData.text);
       if (validationError) {
-        return { success: false, error: validationError }
+        return { success: false, error: validationError };
       }
 
-      setState((prev) => ({ ...prev, isSubmitting: true, error: null }))
+      setState((prev) => ({ ...prev, isSubmitting: true, error: null }));
 
       try {
-        const timestamp = Date.now()
+        const timestamp = Date.now();
         const commentPayload = {
           videoId,
           author: address,
           text: newCommentData.text.trim(),
           timestamp,
           ...(newCommentData.parentId && { parentId: newCommentData.parentId }),
-        }
+        };
 
-        console.log('[addComment] 准备签名的评论数据:', commentPayload)
-
-        // 创建规范化的签名消息
         const messageToSign = JSON.stringify(
           commentPayload,
           Object.keys(commentPayload).sort()
-        )
-        console.log('[addComment] 请求签名消息:', messageToSign)
+        );
+        console.log('[addComment] Requesting signature for:', messageToSign);
 
-        // 请求用户签名
-        const signature = await signMessageAsync({
-          message: messageToSign,
-        })
-
+        const signature = await signMessageAsync({ message: messageToSign });
         if (!signature) {
-          throw new Error('未获得签名')
+          throw new Error('Signature not obtained');
         }
 
-        console.log('[addComment] 获得签名，正在提交评论')
+        console.log('[addComment] Signature obtained, submitting comment');
 
-        // 提交评论到服务器
         const response = await fetch('/api/comments', {
           method: 'POST',
           headers: {
@@ -266,70 +230,46 @@ function useComments({
             ...commentPayload,
             signature,
           }),
-        })
+        });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(
-            errorData.error || `提交评论失败: HTTP ${response.status}`
-          )
+            errorData.error || `Failed to submit comment: HTTP ${response.status}`
+          );
         }
 
-        const responseData = await response.json()
-        console.log('[addComment] 评论提交成功:', responseData)
+        const responseData = await response.json();
+        console.log('[addComment] Comment submitted successfully:', responseData);
 
-        // 刷新评论列表
-        await fetchComments(false)
-
-        setState((prev) => ({ ...prev, isSubmitting: false }))
-        return { success: true }
-      } catch (err: unknown) {
-        console.error('[addComment] 添加评论时出错:', err)
-
-        let errorMessage = '添加评论失败'
-
-        if (err && typeof err === 'object') {
-          if ('code' in err) {
-            const errorWithCode = err as { code: number }
-            if (errorWithCode.code === 4001) {
-              errorMessage = '用户取消了签名'
-            } else if (errorWithCode.code === -32603) {
-              errorMessage = '钱包连接异常，请重试'
-            }
-          }
-          if (err instanceof Error) {
-            errorMessage = err.message
-          }
+        await fetchComments(false);
+        setState((prev) => ({ ...prev, isSubmitting: false }));
+        return { success: true };
+      } catch (err: any) {
+        console.error('[addComment] Error adding comment:', err);
+        let errorMessage = 'Failed to add comment';
+        if (err.code === 4001) {
+          errorMessage = 'User cancelled signature';
+        } else if (err.code === -32603) {
+          errorMessage = 'Wallet connection error, please try again';
+        } else if (err instanceof Error) {
+          errorMessage = err.message;
         }
-
-        if (!isMountedRef.current)
-          return { success: false, error: errorMessage }
 
         setState((prev) => ({
           ...prev,
           isSubmitting: false,
           error: errorMessage,
-        }))
-
-        return { success: false, error: errorMessage }
+        }));
+        return { success: false, error: errorMessage };
       }
     },
-    [
-      videoId,
-      isConnected,
-      address,
-      signMessageAsync,
-      validateComment,
-      fetchComments,
-    ]
-  )
+    [videoId, isConnected, address, signMessageAsync, validateComment, fetchComments]
+  );
 
-  /**
-   * 删除评论（如果支持的话）
-   */
   const deleteComment = useCallback(
     async (commentId: string): Promise<boolean> => {
-      if (!commentId || !address) return false
+      if (!commentId || !address) return false;
 
       try {
         const response = await fetch(`/api/comments/${commentId}`, {
@@ -338,34 +278,29 @@ function useComments({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ author: address }),
-        })
+        });
 
         if (!response.ok) {
-          throw new Error('删除评论失败')
+          throw new Error('Failed to delete comment');
         }
 
-        // 从本地状态中移除评论
         setState((prev) => ({
           ...prev,
           comments: prev.comments.filter((comment) => comment.id !== commentId),
           totalCount: Math.max(0, prev.totalCount - 1),
-        }))
-
-        return true
+        }));
+        return true;
       } catch (err) {
-        console.error('删除评论时出错:', err)
-        return false
+        console.error('Error deleting comment:', err);
+        return false;
       }
     },
     [address]
-  )
+  );
 
-  /**
-   * 点赞评论
-   */
   const likeComment = useCallback(
     async (commentId: string): Promise<boolean> => {
-      if (!commentId || !address) return false
+      if (!commentId || !address) return false;
 
       try {
         const response = await fetch(`/api/comments/${commentId}/like`, {
@@ -374,13 +309,12 @@ function useComments({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ author: address }),
-        })
+        });
 
         if (!response.ok) {
-          throw new Error('点赞失败')
+          throw new Error('Failed to like comment');
         }
 
-        // 更新本地状态
         setState((prev) => ({
           ...prev,
           comments: prev.comments.map((comment) =>
@@ -388,52 +322,40 @@ function useComments({
               ? { ...comment, likes: (comment.likes || 0) + 1 }
               : comment
           ),
-        }))
-
-        return true
+        }));
+        return true;
       } catch (err) {
-        console.error('点赞评论时出错:', err)
-        return false
+        console.error('Error liking comment:', err);
+        return false;
       }
     },
     [address]
-  )
+  );
 
-  /**
-   * 清除错误状态
-   */
   const clearError = useCallback(() => {
-    setState((prev) => ({ ...prev, error: null }))
-  }, [])
+    setState((prev) => ({ ...prev, error: null }));
+  }, []);
 
-  /**
-   * 手动刷新评论
-   */
   const refetchComments = useCallback(() => {
-    return fetchComments(true)
-  }, [fetchComments])
+    return fetchComments(true);
+  }, [fetchComments]);
 
   return {
-    // 状态
     comments: state.comments,
     isLoading: state.isLoading,
     isSubmitting: state.isSubmitting,
     error: state.error,
     hasMore: state.hasMore,
     totalCount: state.totalCount,
-
-    // 操作
     addComment,
     deleteComment,
     likeComment,
     refetchComments,
     clearError,
-
-    // 用户状态
     isConnected,
     userAddress: address,
     isSigning,
-  }
+  };
 }
 
-export default useComments
+export default useComments;

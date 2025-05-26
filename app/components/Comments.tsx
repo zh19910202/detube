@@ -17,6 +17,7 @@ interface Comment {
 const Comments: React.FC<CommentsProps> = ({ videoId }) => {
   const { comments, isLoading, error, addComment, refetchComments } =
     useComments({ videoId })
+
   const [newCommentText, setNewCommentText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -267,8 +268,7 @@ const Comments: React.FC<CommentsProps> = ({ videoId }) => {
         <div
           className="p-3 mb-4 bg-red-500/20 border border-red-500/30 text-red-300 rounded-lg text-sm"
           role="alert">
-          Error loading comments:{' '}
-          {getErrorMessage(error)}
+          Error loading comments: {getErrorMessage(error)}
         </div>
       )}
 
