@@ -17,6 +17,8 @@ import Comments from '@/app/components/Comments' // 导入评论组件
 import { formatDisplayAddress, debounce } from '../../lib/utils' // debounce was already moved in a previous step, but the read file content was stale
 import { usePinata } from '../../hooks/usePinata'
 import RecommendedVideoCard from '@/app/components/RecommendedVideoCard'
+import VideoMetadataLoader from '@/app/components/VideoMetadataLoader' // Import Loader
+import VideoMetadataError from '@/app/components/VideoMetadataError'   // Import Error Display
 
 // 确保地址格式正确的辅助函数
 const formatEthAddress = (address: string): `0x${string}` | null => {
@@ -485,32 +487,12 @@ const VideoPage = () => {
   }, [allVideos, currentVideoCid])
 
   if (isMetadataLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-background text-foreground">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent"></div>
-        <p className="ml-3">Loading video data...</p>
-      </div>
-    )
+    return <VideoMetadataLoader />;
   }
 
   if (metadataError || !videoMetadata) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex justify-center items-center p-4">
-        <div className="bg-primary p-6 rounded-lg shadow-xl border border-secondary">
-          <h2 className="text-xl text-foreground font-bold mb-3">
-            Loading Error
-          </h2>
-          <p className="text-gray-400 mb-4">
-            {metadataError || 'Video failed to load. Please try again.'}
-          </p>
-          <button
-            onClick={() => window.history.back()}
-            className="mt-4 bg-accent text-background px-4 py-2 rounded-lg hover:bg-accent-hover transition-colors">
-            Go Back
-          </button>
-        </div>
-      </div>
-    )
+    // Consider adding a retry mechanism to fetchMetadata if applicable
+    return <VideoMetadataError errorMessage={metadataError || 'Video metadata could not be loaded.'} />;
   }
 
   const videoUrl = `${getPinataGateway()}/ipfs/${videoMetadata.videoCid}`

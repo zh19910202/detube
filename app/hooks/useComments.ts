@@ -272,71 +272,6 @@ function useComments({
     [videoId, isConnected, address, signMessageAsync, validateComment, fetchComments]
   );
 
-  const deleteComment = useCallback(
-    async (commentId: string): Promise<boolean> => {
-      if (!commentId || !address) return false;
-
-      try {
-        const response = await fetch(`/api/comments/${commentId}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ author: address }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete comment');
-        }
-
-        setState((prev) => ({
-          ...prev,
-          comments: prev.comments.filter((comment) => comment.id !== commentId),
-          totalCount: Math.max(0, prev.totalCount - 1),
-        }));
-        return true;
-      } catch (err) {
-        console.error('Error deleting comment:', err);
-        return false;
-      }
-    },
-    [address]
-  );
-
-  const likeComment = useCallback(
-    async (commentId: string): Promise<boolean> => {
-      if (!commentId || !address) return false;
-
-      try {
-        const response = await fetch(`/api/comments/${commentId}/like`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ author: address }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to like comment');
-        }
-
-        setState((prev) => ({
-          ...prev,
-          comments: prev.comments.map((comment) =>
-            comment.id === commentId
-              ? { ...comment, likes: (comment.likes || 0) + 1 }
-              : comment
-          ),
-        }));
-        return true;
-      } catch (err) {
-        console.error('Error liking comment:', err);
-        return false;
-      }
-    },
-    [address]
-  );
-
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
   }, []);
@@ -348,18 +283,11 @@ function useComments({
   return {
     comments: state.comments,
     isLoading: state.isLoading,
-    isSubmitting: state.isSubmitting,
     error: state.error,
-    hasMore: state.hasMore,
-    totalCount: state.totalCount,
     addComment,
-    deleteComment,
-    likeComment,
     refetchComments,
-    clearError,
-    isConnected,
+    isConnected, 
     userAddress: address,
-    isSigning,
   };
 }
 

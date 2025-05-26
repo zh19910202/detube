@@ -152,16 +152,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
-// GET /api/comments/[videoId] would be in a different file: app/api/comments/[videoId]/route.ts
-// This file (route.ts) is for /api/comments
-
-export async function GET() {
-  // Example: Basic GET handler for /api/comments (not specific to a videoId)
-  // This might list all CIDs if you had a way to query them, or just be a placeholder.
-  // For fetching comments for a SPECIFIC video, you need app/api/comments/[videoId]/route.ts
-  return NextResponse.json({
-    message:
-      'This route is for posting comments. Use /api/comments/[videoId] to get comments for a video.',
-  })
-}

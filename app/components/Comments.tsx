@@ -102,17 +102,18 @@ const Comments: React.FC<CommentsProps> = ({ videoId }) => {
       setSubmitError(null)
 
       try {
-        const success = await addComment({ text: trimmedText })
-        console.log('Comment submission result:', success)
+        const result = await addComment({ text: trimmedText })
+        console.log('Comment submission result:', result)
 
-        if (success) {
+        if (result.success) {
           setNewCommentText('')
           // Use a small delay to ensure backend has processed the comment
           setTimeout(() => {
             refetchComments()
           }, 500)
         } else {
-          throw new Error('Comment submission failed')
+          // Use the error message from addComment if available
+          throw new Error(result.error || 'Comment submission failed')
         }
       } catch (err) {
         console.error('Comment submission error:', err)
