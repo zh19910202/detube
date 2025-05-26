@@ -27,7 +27,7 @@ const Comments: React.FC<CommentsProps> = ({ videoId }) => {
   const formattedComments = useMemo(() => {
     return comments.map((comment: Comment) => ({
       ...comment,
-      formattedTime: formatDistanceToNow(new Date(comment.timestamp * 1000), {
+      formattedTime: formatDistanceToNow(new Date(comment.timestamp), {
         addSuffix: true,
       }),
       truncatedAuthor: `${comment.author.slice(0, 6)}...${comment.author.slice(
