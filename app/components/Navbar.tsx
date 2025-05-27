@@ -31,7 +31,7 @@ const Navbar: React.FC = () => {
       setLocalError(null)
     }
   }, [isConnected, localError])
-  
+
   const openModal = () => {
     if (!isConnected) {
       setLocalError('请先连接钱包')
@@ -64,7 +64,7 @@ const Navbar: React.FC = () => {
     if (!address) {
       setLocalError('请先连接钱包以获取地址')
       // Pinata hook's error state (pinataError) might also be set by usePinata if it checks address
-      return 
+      return
     }
 
     // Basic validation already done in modal, but can double check here if needed.
@@ -81,7 +81,7 @@ const Navbar: React.FC = () => {
         try {
           const result = await encryptVideo(
             selectedFile,
-            accessControlConditions() 
+            accessControlConditions()
           )
           videoToUpload = result.newFile
           dataToEncryptHash = result.dataToEncryptHash
@@ -101,11 +101,10 @@ const Navbar: React.FC = () => {
         isPublicUpload,
         dataToEncryptHash
       )
-      
+
       // If uploadFile is successful (doesn't throw), ipfsHash will be set by the hook.
       // The useEffect below will handle setShowUploadSuccess and closing the modal.
       // No need to setIsModalOpen(false) directly here if success effect handles it.
-
     } catch (uploadError) {
       // This catch block will primarily catch errors from encryptVideo or other synchronous issues.
       // Errors from uploadFile (async Pinata interaction) are typically managed within the usePinata hook
@@ -113,7 +112,11 @@ const Navbar: React.FC = () => {
       console.error('上传准备失败 (Navbar):', uploadError)
       setIsEncrypting(false) // Ensure this is reset on error
       setLocalError(
-        `上传准备失败: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`
+        `上传准备失败: ${
+          uploadError instanceof Error
+            ? uploadError.message
+            : String(uploadError)
+        }`
       )
       // The `pinataError` from the hook will also be passed to the modal.
     }
@@ -121,34 +124,36 @@ const Navbar: React.FC = () => {
 
   // Monitor ipfsHash and pinataError to handle UI after upload attempt
   useEffect(() => {
-    if (ipfsHash && !pinataError) { // Successfully uploaded
+    if (ipfsHash && !pinataError) {
+      // Successfully uploaded
       setShowUploadSuccess(true)
       // Form fields are reset within VideoUploadModal via its useEffect on isOpen
-      
+
       window.dispatchEvent(new CustomEvent('video-upload-complete'))
 
       // Optional: Auto-close modal after a delay
       const successCloseTimeout = setTimeout(() => {
         // setIsModalOpen(false); // Consider if auto-close is desired
         // setShowUploadSuccess(false); // Reset for next time if modal stays open
-      }, 3000); // Keep success message for a bit longer
+      }, 3000) // Keep success message for a bit longer
 
       // Reset success state for next upload IF modal isn't closed automatically
       // If modal auto-closes, this might not be strictly necessary as openModal resets it.
-      const resetSuccessStateTimeout = setTimeout(() => setShowUploadSuccess(false), 5000);
-
+      const resetSuccessStateTimeout = setTimeout(
+        () => setShowUploadSuccess(false),
+        5000
+      )
 
       return () => {
-        clearTimeout(successCloseTimeout);
-        clearTimeout(resetSuccessStateTimeout);
+        clearTimeout(successCloseTimeout)
+        clearTimeout(resetSuccessStateTimeout)
       }
     }
     // No explicit action needed here for pinataError, as it's passed to the modal.
   }, [ipfsHash, pinataError])
 
-
   // The main error to pass to the modal, prioritizing local errors.
-  const combinedError = localError || pinataError;
+  const combinedError = localError || pinataError
 
   return (
     <nav className="bg-primary shadow-md sticky top-0 z-50">
@@ -159,15 +164,17 @@ const Navbar: React.FC = () => {
           DeTube
         </Link>
         <div className="flex items-center space-x-4">
-          {isConnected && !uploading && !isEncrypting && ( // Check Navbar's isEncrypting too
-            <button
-              onClick={openModal}
-              className="bg-accent hover:bg-accent-hover text-background font-semibold py-2 px-4 rounded-md transition-colors duration-300 shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-hover focus:ring-opacity-50">
-              Upload Video
-            </button>
-          )}
+          {isConnected &&
+            !uploading &&
+            !isEncrypting && ( // Check Navbar's isEncrypting too
+              <button
+                onClick={openModal}
+                className="bg-accent hover:bg-accent-hover text-background font-semibold py-2 px-4 rounded-md transition-colors duration-300 shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-hover focus:ring-opacity-50">
+                Upload Video
+              </button>
+            )}
           {/* Display for Pinata uploading or Lit encrypting */}
-          {isConnected && (uploading || isEncrypting) && ( 
+          {isConnected && (uploading || isEncrypting) && (
             <div className="py-2 px-4 rounded-md bg-secondary border border-accent/30 text-sm">
               <p className="text-center font-semibold text-accent">
                 {isEncrypting // Navbar's isEncrypting for Lit
@@ -180,7 +187,7 @@ const Navbar: React.FC = () => {
                     : uploadStage === 'metadata'
                     ? '元数据处理中...'
                     : '处理中...'
-                  : '准备上传...'} 
+                  : '准备上传...'}
               </p>
               <div className="w-full bg-primary rounded-full h-1.5 mt-1 border border-secondary/50">
                 <div

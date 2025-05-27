@@ -43,7 +43,7 @@ function useComments({
   });
 
   const { address, isConnected } = useAccount();
-  const { signMessageAsync, isPending: isSigning } = useSignMessage();
+  const { signMessageAsync } = useSignMessage();
   const abortControllerRef = useRef<AbortController | null>(null);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -286,6 +286,7 @@ function useComments({
     error: state.error,
     addComment,
     refetchComments,
+    clearError,
     isConnected, 
     userAddress: address,
   };
