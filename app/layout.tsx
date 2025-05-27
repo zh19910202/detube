@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import { config } from './lib/wagmi'
+import { StagewiseToolbar } from '@stagewise/toolbar-next'
 
 const queryClient = new QueryClient()
 const inter = Inter({
@@ -50,6 +51,10 @@ export default function RootLayout({
     setMounted(true)
   }, [])
 
+  const stagewiseConfig = {
+    plugins: [],
+  }
+
   // 确保客户端相关代码只在组件挂载后执行
   if (!mounted) {
     return (
@@ -69,6 +74,17 @@ export default function RootLayout({
     overlayBlur: 'small',
   })
 
+  // To customize specific parts like button backgrounds, we usually merge
+  // the base theme with our custom overrides.
+  const finalTheme = {
+    ...customRainbowTheme,
+    colors: {
+      ...customRainbowTheme.colors,
+      connectButtonBackground: '#00FFFF',
+      connectButtonText: '#0D0D1A',
+    },
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -86,9 +102,12 @@ export default function RootLayout({
         suppressHydrationWarning>
         <WagmiProvider config={config}>
           <QueryClientProvider client={queryClient}>
-            <RainbowKitProvider theme={customRainbowTheme}>
+            <RainbowKitProvider theme={finalTheme}>
               <Navbar />
               <main>{children}</main>
+              {process.env.NODE_ENV === 'development' && (
+                <StagewiseToolbar config={stagewiseConfig} />
+              )}
             </RainbowKitProvider>
           </QueryClientProvider>
         </WagmiProvider>
